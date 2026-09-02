@@ -224,16 +224,33 @@
   </div>
 </div>
 <script type="module">
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
-const SUPABASE_URL = "https://snmwviylwccmtkivyikj.supabase.co";
-const SUPABASE_KEY = "sb_publishable_O82Gp8Zgka_4siADXiHAsA_LzgCqWDJ";
-const STAFF_FN = "staff-gateway"; // Edge Function — holds the staff PIN + QR secret server-side now
+const firebaseConfig = {
+  apiKey: "AIzaSyDEMV77a_XEPQ6tVaMzznYQNI-9xX9Bzb8",
+  authDomain: "ftbar-812a9.firebaseapp.com",
+  projectId: "ftbar-812a9",
+  storageBucket: "ftbar-812a9.firebasestorage.app",
+  messagingSenderId: "260675616348",
+  appId: "1:260675616348:web:cb67ace149a95c8a45f099",
+  measurementId: "G-8P5028LHY7"
+};
+
+const STAFF_PIN = "622527"; // كود دخول الموظف — غيّره لأي رقم تبيه
+const QR_SECRET = "fitbar-qr-2026-change-me"; // سر بسيط لتوقيع QR (مو تشفير حقيقي، بس يمنع تلاعب سطحي)
 const CACHE_KEY = "fitbar_cache";
 const QUEUE_KEY = "fitbar_queue";
 const PAGE_SIZE = 10;
 
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const auth = getAuth(fbApp);
+const authReady = new Promise((resolve) => {
+  onAuthStateChanged(auth, (user) => { if (user) resolve(user); });
+  signInAnonymously(auth).catch(() => resolve(null));
+});
 
 let data = {}, log = [], loaded = false, logLoaded = false;
 let currentMode = null, activeFilter = "all", activeSearch = "";
@@ -261,50 +278,73 @@ function queueOp(action, payload) { const q = getQueue(); q.push({ action, paylo
 
 async function loadData() {
   try {
-    const { data: rows, error } = await sb.from("subscriptions").select("*");
-    if (error) throw error;
+    await authReady;
+    const snap = await getDocs(collection(db, "subscriptions"));
     data = {};
-    (rows || []).forEach((r) => { data[r.code] = { name: r.name, mealsTotal: r.meals_total ?? 0, mealsUsed: r.meals_used ?? 0, saladsTotal: r.salads_total ?? 0, saladsUsed: r.salads_used ?? 0 }; });
+    snap.forEach((d) => { const r = d.data(); data[d.id] = { name: r.name, mealsTotal: r.mealsTotal ?? 0, mealsUsed: r.mealsUsed ?? 0, saladsTotal: r.saladsTotal ?? 0, saladsUsed: r.saladsUsed ?? 0 }; });
     setCache(data); loaded = true; return { ok: true };
   } catch (e) { data = getCache(); loaded = true; showToast("⚠️ وضع عدم الاتصال", "error"); return { ok: true }; }
 }
 
 async function saveSub(code, sub) {
   try {
-    await sb.from("subscriptions").upsert({ code, name: sub.name, meals_total: sub.mealsTotal, meals_used: sub.mealsUsed, salads_total: sub.saladsTotal, salads_used: sub.saladsUsed });
+    await authReady;
+    await setDoc(doc(db, "subscriptions", code), { name: sub.name, mealsTotal: sub.mealsTotal, mealsUsed: sub.mealsUsed, saladsTotal: sub.saladsTotal, saladsUsed: sub.saladsUsed }, { merge: true });
     const c = getCache(); c[code] = sub; setCache(c); return { ok: true };
-  } catch (e) { const c = getCache(); c[code] = sub; setCache(c); queueOp("upsert", { code, name: sub.name, meals_total: sub.mealsTotal, meals_used: sub.mealsUsed, salads_total: sub.saladsTotal, salads_used: sub.saladsUsed }); showToast("⚠️ حفظ محلي", "error"); return { ok: false }; }
+  } catch (e) { const c = getCache(); c[code] = sub; setCache(c); queueOp("upsert", { code, name: sub.name, mealsTotal: sub.mealsTotal, mealsUsed: sub.mealsUsed, saladsTotal: sub.saladsTotal, saladsUsed: sub.saladsUsed }); showToast("⚠️ حفظ محلي", "error"); return { ok: false }; }
 }
 
 async function deleteSubRemote(code) {
-  try { await sb.from("subscriptions").delete().eq("code", code); const c = getCache(); delete c[code]; setCache(c); return { ok: true }; }
+  try { await authReady; await deleteDoc(doc(db, "subscriptions", code)); const c = getCache(); delete c[code]; setCache(c); return { ok: true }; }
   catch (e) { const c = getCache(); delete c[code]; setCache(c); queueOp("delete", { code }); return { ok: false }; }
 }
 
 async function syncPending() {
   const q = getQueue(); if (!q.length) return; let synced = 0, failed = [];
-  for (const item of q) { try { if (item.action === "upsert") await sb.from("subscriptions").upsert(item.payload); else if (item.action === "delete") await sb.from("subscriptions").delete().eq("code", item.payload.code); synced++; } catch { failed.push(item); } }
+  try { await authReady; } catch {}
+  for (const item of q) {
+    try {
+      if (item.action === "upsert") await setDoc(doc(db, "subscriptions", item.payload.code), { name: item.payload.name, mealsTotal: item.payload.mealsTotal, mealsUsed: item.payload.mealsUsed, saladsTotal: item.payload.saladsTotal, saladsUsed: item.payload.saladsUsed }, { merge: true });
+      else if (item.action === "delete") await deleteDoc(doc(db, "subscriptions", item.payload.code));
+      synced++;
+    } catch { failed.push(item); }
+  }
   setQueue(failed); if (synced) showToast(`✓ تمت مزامنة ${synced}`, "success");
 }
 
 async function loadLog() {
-  try { const { data: rows } = await sb.from("activity_log").select("*").order("ts", { ascending: false }).limit(200); log = (rows || []).map((r) => ({ action: r.action, code: r.code, name: r.name, extra: r.extra || "", ts: r.ts })); localStorage.setItem("fitbar_log", JSON.stringify(log)); } catch { log = JSON.parse(localStorage.getItem("fitbar_log") || "[]"); }
+  try {
+    await authReady;
+    const qy = query(collection(db, "activity_log"), orderBy("ts", "desc"), limit(200));
+    const snap = await getDocs(qy);
+    log = snap.docs.map((d) => { const r = d.data(); return { action: r.action, code: r.code, name: r.name, extra: r.extra || "", ts: r.ts }; });
+    localStorage.setItem("fitbar_log", JSON.stringify(log));
+  } catch { log = JSON.parse(localStorage.getItem("fitbar_log") || "[]"); }
   logLoaded = true;
 }
 
 async function addLogEntry(action, code, name, extra) {
-  if (!logLoaded) await loadLog(); const entry = { action, code, name, extra: extra || "", ts: new Date().toISOString() }; log.unshift(entry); log = log.slice(0, 200); try { await sb.from("activity_log").insert(entry); } catch {}
+  if (!logLoaded) await loadLog(); const entry = { action, code, name, extra: extra || "", ts: new Date().toISOString() }; log.unshift(entry); log = log.slice(0, 200);
+  try { await authReady; await addDoc(collection(db, "activity_log"), entry); } catch {}
 }
 
+function qrChecksum(str) { let h = 0; for (let i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) >>> 0; } return h.toString(36); }
 async function generateSecureQR(code) {
-  const { data, error } = await sb.functions.invoke(STAFF_FN, { body: { action: "sign-qr", code } });
-  if (error || !data?.qrString) return null;
-  return { code, qrString: data.qrString };
+  const exp = Date.now() + 4.5 * 60 * 1000;
+  const payload = `${code}|${exp}`;
+  const sig = qrChecksum(payload + QR_SECRET);
+  const qrString = btoa(`${payload}|${sig}`);
+  return { code, qrString };
 }
 async function verifyQR(str) {
-  const { data, error } = await sb.functions.invoke(STAFF_FN, { body: { action: "verify-qr", qrString: str } });
-  if (error || !data) return { valid: false };
-  return data;
+  try {
+    const decoded = atob(str);
+    const [code, expStr, sig] = decoded.split("|");
+    const exp = parseInt(expStr, 10);
+    if (qrChecksum(`${code}|${exp}` + QR_SECRET) !== sig) return { valid: false };
+    if (Date.now() > exp) return { valid: false, reason: "expired" };
+    return { valid: true, code };
+  } catch (e) { return { valid: false }; }
 }
 
 async function renderSecureQR(id, code) {
@@ -345,9 +385,12 @@ async function doLookup() {
   const code = $("customer-code").value.trim(); const box = $("customer-result");
   if (!code) { showToast("أدخل الرمز", "error"); return; }
   box.innerHTML = `<div class="empty">جاري البحث…</div>`;
-  const { data: rows, error } = await sb.rpc("get_subscription_public", { p_code: code });
-  const r = !error && rows && rows[0] ? rows[0] : null;
-  const sub = r ? { name: r.name, mealsTotal: r.meals_total ?? 0, mealsUsed: r.meals_used ?? 0, saladsTotal: r.salads_total ?? 0, saladsUsed: r.salads_used ?? 0 } : null;
+  await authReady;
+  let sub = null;
+  try {
+    const snap = await getDoc(doc(db, "subscriptions", code));
+    if (snap.exists()) { const r = snap.data(); sub = { name: r.name, mealsTotal: r.mealsTotal ?? 0, mealsUsed: r.mealsUsed ?? 0, saladsTotal: r.saladsTotal ?? 0, saladsUsed: r.saladsUsed ?? 0 }; }
+  } catch (e) {}
   if (!sub) { box.innerHTML = `<div class="empty"><div class="empty-icon">❌</div>الرمز غير صحيح</div>`; return; }
   box.innerHTML = mealCardHTML(code, sub, { showQr: true }); setTimeout(() => renderSecureQR(`qr-${code}`, code), 100);
 }
@@ -426,14 +469,12 @@ async function verifyStaffCode() {
   const pin = $("staff-code-input").value.trim().replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d)); if (!pin) return;
   const btn = $("staff-login-btn"); btn.disabled = true;
   try {
-    if (pin === "666111") {
+    await authReady;
+    if (pin === STAFF_PIN) {
       currentMode = "staff"; $("staff-code-input").value = ""; $("switcher").style.display = "flex"; showScreen("panel-staff"); $("tab-staff").click();
-      return;
+    } else {
+      showToast("كود خاطئ", "error");
     }
-    const { data, error } = await sb.functions.invoke(STAFF_FN, { body: { action: "login", pin } });
-    if (error || !data?.session) { showToast("كود خاطئ", "error"); return; }
-    await sb.auth.setSession({ access_token: data.session.access_token, refresh_token: data.session.refresh_token });
-    currentMode = "staff"; $("staff-code-input").value = ""; $("switcher").style.display = "flex"; showScreen("panel-staff"); $("tab-staff").click();
   } catch (e) { showToast("تعذر تسجيل الدخول", "error"); }
   finally { btn.disabled = false; }
 }
