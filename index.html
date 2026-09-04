@@ -502,7 +502,7 @@ input:focus,select:focus,textarea:focus{border-color:rgba(167,139,250,.8)!import
           <button class="btn btn-scan" id="open-scan-btn">مسح رمز العميل</button>
         </div>
         <hr class="divider">
-        <h3 class="section-title"><span class="section-num">3</span> الاشتراكات الحالية</h3>
+        <h3 class="section-title"><span class="section-num">3</span> الاشتراكات الحالية <span id="subs-count" style="font-size:11px;font-weight:700;color:var(--tb-muted,var(--gray));background:rgba(139,92,246,.15);border-radius:20px;padding:2px 10px;margin-inline-start:6px;">0</span></h3>
         <div class="search-row">
           <input id="staff-search" placeholder="ابحث بالاسم أو الرمز أو رقم الموبايل…">
         </div>
@@ -739,6 +739,7 @@ window._goPage = (p) => { currentPage = p; renderStaffList(); };
 
 function renderStaffList() {
   const wrap = $("staff-list"); const all = Object.keys(data); const codes = getFilteredCodes();
+  const countBadge = $("subs-count"); if (countBadge) countBadge.textContent = all.length + " مشترك";
   if (!all.length) { wrap.innerHTML = `<div class="empty"><div class="empty-icon">📭</div>لا توجد اشتراكات</div>`; $("pagination").innerHTML = ""; return; }
   if (!codes.length) { wrap.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div>لا توجد نتائج</div>`; $("pagination").innerHTML = ""; return; }
   const tp = Math.ceil(codes.length / PAGE_SIZE) || 1; if (currentPage > tp) currentPage = tp;
