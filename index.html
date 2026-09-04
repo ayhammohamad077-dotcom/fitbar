@@ -853,7 +853,7 @@ $("staff-login-btn").addEventListener("click", verifyStaffCode);
 $("staff-code-input").addEventListener("keydown", (e) => { if (e.key === "Enter") verifyStaffCode(); });
 
 $("tab-customer").addEventListener("click", () => { if (currentMode !== "staff") return; $("tab-customer").classList.add("active"); $("tab-staff").classList.remove("active"); $("panel-customer").classList.add("active"); $("panel-staff").classList.remove("active"); });
-$("tab-staff").addEventListener("click", async () => { $("tab-staff").classList.add("active"); $("tab-customer").classList.remove("active"); $("panel-staff").classList.add("active"); $("panel-customer").classList.remove("active"); await switchSubtab(activeSubtab); });
+$("tab-staff").addEventListener("click", async () => { if (currentMode !== "staff") return; $("tab-staff").classList.add("active"); $("tab-customer").classList.remove("active"); $("panel-staff").classList.add("active"); $("panel-customer").classList.remove("active"); await switchSubtab(activeSubtab); });
 
 $("open-scan-btn").addEventListener("click", openScanner);
 $("close-scan-btn").addEventListener("click", closeScanner);
