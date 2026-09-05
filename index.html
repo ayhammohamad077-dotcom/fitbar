@@ -642,7 +642,7 @@ const firebaseConfig = {
   measurementId: "G-8P5028LHY7"
 };
 
-const STAFF_PIN = "622527"; // كود دخول الموظف — غيّره لأي رقم تبيه
+const STAFF_CODES = { "763883": "manager", "636738": "staff" }; // 763883 = مدير (كل الصلاحيات) | 636738 = موظف (خصم فقط، بدون حذف أو تقارير)
 const QR_SECRET = "fitbar-qr-2026-change-me"; // سر بسيط لتوقيع QR (مو تشفير حقيقي، بس يمنع تلاعب سطحي)
 const CACHE_KEY = "fitbar_cache";
 const QUEUE_KEY = "fitbar_queue";
@@ -657,7 +657,7 @@ const authReady = new Promise((resolve) => {
 });
 
 let data = {}, log = [], loaded = false, logLoaded = false;
-let currentMode = null, activeFilter = "all", activeSearch = "";
+let currentMode = null, currentRole = null, activeFilter = "all", activeSearch = "";
 let activeSubtab = "subs", currentPage = 1, qrTimers = {};
 
 const $ = (id) => document.getElementById(id);
@@ -719,7 +719,7 @@ async function loadData() {
     await authReady;
     const snap = await getDocs(collection(db, "subscriptions"));
     data = {};
-    snap.forEach((d) => { const r = d.data(); data[d.id] = { name: r.name, phone: r.phone || "", mealsTotal: r.mealsTotal ?? 0, mealsUsed: r.mealsUsed ?? 0, saladsTotal: r.saladsTotal ?? 0, saladsUsed: r.saladsUsed ?? 0, archived: r.archived || false, notes: r.notes || "" }; });
+    snap.forEach((d) => { const r = d.data(); data[d.id] = { name: r.name, phone: r.phone || "", mealsTotal: r.mealsTotal ?? 0, mealsUsed: r.mealsUsed ?? 0, saladsTotal: r.saladsTotal ?? 0, saladsUsed: r.saladsUsed ?? 0, archived: r.archived || false, notes: r.notes || "", createdAt: r.createdAt || "" }; });
     setCache(data); loaded = true; return { ok: true };
   } catch (e) { data = getCache(); loaded = true; showToast("⚠️ وضع عدم الاتصال", "error"); return { ok: true }; }
 }
@@ -727,9 +727,9 @@ async function loadData() {
 async function saveSub(code, sub) {
   try {
     await authReady;
-    await setDoc(doc(db, "subscriptions", code), { name: sub.name, phone: sub.phone || "", mealsTotal: sub.mealsTotal, mealsUsed: sub.mealsUsed, saladsTotal: sub.saladsTotal, saladsUsed: sub.saladsUsed, archived: sub.archived || false, notes: sub.notes || "" }, { merge: true });
+    await setDoc(doc(db, "subscriptions", code), { name: sub.name, phone: sub.phone || "", mealsTotal: sub.mealsTotal, mealsUsed: sub.mealsUsed, saladsTotal: sub.saladsTotal, saladsUsed: sub.saladsUsed, archived: sub.archived || false, notes: sub.notes || "", createdAt: sub.createdAt || "" }, { merge: true });
     const c = getCache(); c[code] = sub; setCache(c); return { ok: true };
-  } catch (e) { const c = getCache(); c[code] = sub; setCache(c); queueOp("upsert", { code, name: sub.name, phone: sub.phone || "", mealsTotal: sub.mealsTotal, mealsUsed: sub.mealsUsed, saladsTotal: sub.saladsTotal, saladsUsed: sub.saladsUsed, archived: sub.archived || false, notes: sub.notes || "" }); showToast("⚠️ حفظ محلي", "error"); return { ok: false }; }
+  } catch (e) { const c = getCache(); c[code] = sub; setCache(c); queueOp("upsert", { code, name: sub.name, phone: sub.phone || "", mealsTotal: sub.mealsTotal, mealsUsed: sub.mealsUsed, saladsTotal: sub.saladsTotal, saladsUsed: sub.saladsUsed, archived: sub.archived || false, notes: sub.notes || "", createdAt: sub.createdAt || "" }); showToast("⚠️ حفظ محلي", "error"); return { ok: false }; }
 }
 
 async function deleteSubRemote(code) {
@@ -742,7 +742,7 @@ async function syncPending() {
   try { await authReady; } catch {}
   for (const item of q) {
     try {
-      if (item.action === "upsert") await setDoc(doc(db, "subscriptions", item.payload.code), { name: item.payload.name, phone: item.payload.phone || "", mealsTotal: item.payload.mealsTotal, mealsUsed: item.payload.mealsUsed, saladsTotal: item.payload.saladsTotal, saladsUsed: item.payload.saladsUsed, archived: item.payload.archived || false, notes: item.payload.notes || "" }, { merge: true });
+      if (item.action === "upsert") await setDoc(doc(db, "subscriptions", item.payload.code), { name: item.payload.name, phone: item.payload.phone || "", mealsTotal: item.payload.mealsTotal, mealsUsed: item.payload.mealsUsed, saladsTotal: item.payload.saladsTotal, saladsUsed: item.payload.saladsUsed, archived: item.payload.archived || false, notes: item.payload.notes || "", createdAt: item.payload.createdAt || "" }, { merge: true });
       else if (item.action === "delete") await deleteDoc(doc(db, "subscriptions", item.payload.code));
       synced++;
     } catch { failed.push(item); }
@@ -813,7 +813,7 @@ function showScreen(id) { document.querySelectorAll(".panel").forEach((p) => p.c
 
 function getGreeting() {
   const h = new Date().getHours();
-  return (h >= 5 && h < 18) ? "☀️ صباح الخير" : "🌙 مساء الخير";
+  return (h >= 5 && h < 12) ? "☀️ صباح الخير" : "🌙 مساء الخير";
 }
 
 function isLowBalance(sub) {
@@ -886,16 +886,23 @@ function renderStaffList() {
     const s = data[code]; const mr = Math.max(s.mealsTotal - s.mealsUsed, 0), sr = Math.max(s.saladsTotal - s.saladsUsed, 0);
     const mp = s.mealsTotal ? Math.round((s.mealsUsed / s.mealsTotal) * 100) : 0, sp = s.saladsTotal ? Math.round((s.saladsUsed / s.saladsTotal) * 100) : 0;
     const notesLine = s.notes ? `<div class="staff-notes">📝 ${s.notes}</div>` : "";
+    const metaLine = `<div class="staff-item-meta">📅 تاريخ الاشتراك: ${formatDate(s.createdAt)}<br>🕒 آخر عملية: ${lastActivityFor(code)}</div>`;
+    const isManager = currentRole === "manager";
     if (s.archived) {
-      return `<div class="staff-item staff-item-archived"><div class="staff-item-header"><div><div class="staff-item-name">${s.name} <span class="archived-badge">مؤرشف</span></div><div class="staff-item-meta">الرمز ${code}${s.phone ? ` · 📱 ${s.phone}` : ""} · آخر رصيد: 🍽️ ${s.mealsTotal} · 🥗 ${s.saladsTotal}</div></div></div>${notesLine}<div class="staff-actions" style="margin-top:8px;"><button class="btn btn-primary" data-action="renew" data-code="${code}">🔄 تجديد</button><button class="btn btn-ghost" data-action="delete" data-code="${code}" style="background:#f3f4f6;">🗑️ حذف نهائي</button></div><div class="staff-actions" style="margin-top:4px;"><button class="btn btn-ghost" data-action="edit-notes" data-code="${code}" style="background:#f3f4f6;width:100%;">📝 تعديل الملاحظة</button></div></div>`;
+      const archivedActions = isManager ? `<div class="staff-actions" style="margin-top:8px;"><button class="btn btn-primary" data-action="renew" data-code="${code}">🔄 تجديد</button><button class="btn btn-ghost" data-action="delete" data-code="${code}" style="background:#f3f4f6;">🗑️ حذف نهائي</button></div>` : `<div class="hint" style="margin-top:8px;">🔒 التجديد والحذف النهائي متاحة للمدير فقط</div>`;
+      return `<div class="staff-item staff-item-archived"><div class="staff-item-header"><div><div class="staff-item-name">${s.name} <span class="archived-badge">مؤرشف</span></div><div class="staff-item-meta">الرمز ${code}${s.phone ? ` · 📱 ${s.phone}` : ""} · آخر رصيد: 🍽️ ${s.mealsTotal} · 🥗 ${s.saladsTotal}</div></div></div>${metaLine}${notesLine}${archivedActions}<div class="staff-actions" style="margin-top:4px;"><button class="btn btn-ghost" data-action="edit-notes" data-code="${code}" style="background:#f3f4f6;width:100%;">📝 تعديل الملاحظة</button></div></div>`;
     }
-    const lowBadge = isLowBalance(s) ? `<span class="low-badge">⚠️ قارب على الانتهاء</span>` : "";
-    return `<div class="staff-item ${isLowBalance(s) ? 'staff-item-low' : ''}"><div class="staff-item-header"><div><div class="staff-item-name">${s.name} ${lowBadge}</div><div class="staff-item-meta">الرمز ${code}${s.phone ? ` · 📱 ${s.phone}` : ""} · 🍽️ ${mr}/${s.mealsTotal} · 🥗 ${sr}/${s.saladsTotal}</div></div><button class="btn btn-ghost" data-action="delete" data-code="${code}" style="width:auto;padding:6px 10px;">حذف</button></div>${notesLine}<div style="font-size:11px;color:var(--gray);margin-bottom:4px;">🍽️ الوجبات</div><div class="progress-bar"><div class="progress-fill" style="width:${mp}%"></div></div><div style="font-size:11px;color:var(--gray);margin-bottom:4px;">🥗 السلطات</div><div class="progress-bar"><div class="progress-fill-green" style="width:${sp}%"></div></div><div class="staff-actions"><button class="btn btn-stamp" data-action="use-meal" data-code="${code}" ${mr <= 0 ? "disabled" : ""}>🍽️ خصم وجبة</button><button class="btn btn-stamp-green" data-action="use-salad" data-code="${code}" ${sr <= 0 ? "disabled" : ""}>🥗 خصم سلطة</button></div><div class="staff-actions"><button class="btn btn-ghost" data-action="undo-meal" data-code="${code}" ${s.mealsUsed <= 0 ? "disabled" : ""} style="background:#f3f4f6;">↶ تراجع وجبة</button><button class="btn btn-ghost" data-action="undo-salad" data-code="${code}" ${s.saladsUsed <= 0 ? "disabled" : ""} style="background:#f3f4f6;">↶ تراجع سلطة</button></div><div class="staff-actions" style="margin-top:4px;"><button class="btn btn-ghost" data-action="qr" data-code="${code}" style="background:#f3f4f6;width:100%;">📱 عرض QR</button><button class="btn btn-ghost" data-action="edit-notes" data-code="${code}" style="background:#f3f4f6;width:100%;">📝 ملاحظة</button></div><div id="qr-slot-${code}"></div></div>`;
+    const st = statusBadge(s);
+    const deleteBtn = isManager ? `<button class="btn btn-ghost" data-action="delete" data-code="${code}" style="width:auto;padding:6px 10px;">حذف</button>` : "";
+    return `<div class="staff-item ${isLowBalance(s) ? 'staff-item-low' : ''}"><div class="staff-item-header"><div><div class="staff-item-name">${s.name} <span class="meal-status ${st.cls}">${st.icon} ${st.label}</span></div><div class="staff-item-meta">الرمز ${code}${s.phone ? ` · 📱 ${s.phone}` : ""} · 🍽️ ${mr}/${s.mealsTotal} · 🥗 ${sr}/${s.saladsTotal}</div></div>${deleteBtn}</div>${metaLine}${notesLine}<div style="font-size:11px;color:var(--gray);margin-bottom:4px;">🍽️ الوجبات</div><div class="progress-bar"><div class="progress-fill" style="width:${mp}%"></div></div><div style="font-size:11px;color:var(--gray);margin-bottom:4px;">🥗 السلطات</div><div class="progress-bar"><div class="progress-fill-green" style="width:${sp}%"></div></div><div class="staff-actions"><button class="btn btn-stamp" data-action="use-meal" data-code="${code}" ${mr <= 0 ? "disabled" : ""}>🍽️ خصم وجبة</button><button class="btn btn-stamp-green" data-action="use-salad" data-code="${code}" ${sr <= 0 ? "disabled" : ""}>🥗 خصم سلطة</button></div><div class="staff-actions"><button class="btn btn-ghost" data-action="undo-meal" data-code="${code}" ${s.mealsUsed <= 0 ? "disabled" : ""} style="background:#f3f4f6;">↶ تراجع وجبة</button><button class="btn btn-ghost" data-action="undo-salad" data-code="${code}" ${s.saladsUsed <= 0 ? "disabled" : ""} style="background:#f3f4f6;">↶ تراجع سلطة</button></div><div class="staff-actions" style="margin-top:4px;"><button class="btn btn-ghost" data-action="qr" data-code="${code}" style="background:#f3f4f6;width:100%;">📱 عرض QR</button><button class="btn btn-ghost" data-action="edit-notes" data-code="${code}" style="background:#f3f4f6;width:100%;">📝 ملاحظة</button></div><div id="qr-slot-${code}"></div></div>`;
   }).join("");
   renderPagination(codes.length);
 }
 
-async function refreshStaff() { $("staff-list").innerHTML = `<div class="empty">جاري التحميل…</div>`; if (!loaded) await loadData(); renderStaffList(); }
+async function refreshStaff() { $("staff-list").innerHTML = `<div class="empty">جاري التحميل…</div>`; if (!loaded) await loadData(); if (!logLoaded) await loadLog(); renderStaffList(); }
+
+function formatDate(iso) { if (!iso) return "—"; const d = new Date(iso); return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`; }
+function lastActivityFor(code) { const entry = log.find((e) => e.code === code); if (!entry) return "لا يوجد نشاط بعد"; const meta = ACTION_META[entry.action] || { label: entry.action }; return `${meta.label} — ${timeAgo(entry.ts)}`; }
 
 const ACTION_META = { create: { icon: "➕", cls: "create", label: "إنشاء بطاقة" }, "use-meal": { icon: "🍽️", cls: "use", label: "خصم وجبة" }, "use-salad": { icon: "🥗", cls: "use", label: "خصم سلطة" }, "undo-meal": { icon: "↶", cls: "undo", label: "تراجع وجبة" }, "undo-salad": { icon: "↶", cls: "undo", label: "تراجع سلطة" }, delete: { icon: "🗑️", cls: "delete", label: "حذف بطاقة" }, archive: { icon: "📦", cls: "delete", label: "أرشفة بطاقة" }, renew: { icon: "🔄", cls: "create", label: "تجديد بطاقة" } };
 
@@ -945,6 +952,7 @@ function exportCSV() {
 }
 
 async function switchSubtab(name) {
+  if (name === "reports" && currentRole !== "manager") { showToast("🔒 التقارير متاحة للمدير فقط", "error"); name = "subs"; }
   activeSubtab = name; document.querySelectorAll("#staff-subswitcher button").forEach((b) => b.classList.toggle("active", b.dataset.sub === name));
   document.querySelectorAll(".subpanel").forEach((p) => p.classList.remove("active")); $(`staff-sub-${name}`).classList.add("active");
   if (name === "subs") await refreshStaff(); else if (name === "log") await renderLog(); else if (name === "reports") await renderStats();
@@ -958,13 +966,21 @@ async function verifyStaffCode() {
   const btn = $("staff-login-btn"); btn.disabled = true;
   try {
     await authReady;
-    if (pin === STAFF_PIN) {
-      currentMode = "staff"; $("staff-code-input").value = ""; $("switcher").style.display = "flex"; showScreen("panel-staff"); $("tab-staff").click();
+    if (STAFF_CODES[pin]) {
+      currentMode = "staff"; currentRole = STAFF_CODES[pin]; applyRoleRestrictions();
+      $("staff-code-input").value = ""; $("switcher").style.display = "flex"; showScreen("panel-staff"); $("tab-staff").click();
+      showToast(currentRole === "manager" ? "✓ دخول كمدير" : "✓ دخول كموظف", "success");
     } else {
       showToast("كود خاطئ", "error");
     }
   } catch (e) { showToast("تعذر تسجيل الدخول", "error"); }
   finally { btn.disabled = false; }
+}
+
+function applyRoleRestrictions() {
+  const reportsBtn = document.querySelector('#staff-subswitcher button[data-sub="reports"]');
+  if (reportsBtn) reportsBtn.style.display = currentRole === "manager" ? "" : "none";
+  if (currentRole !== "manager" && activeSubtab === "reports") activeSubtab = "subs";
 }
 
 let scanStream = null, scanRAF = null;
@@ -1001,6 +1017,7 @@ $("staff-list").addEventListener("click", async (e) => {
   else if (action === "undo-meal" && sub.mealsUsed > 0) { sub.mealsUsed--; showToast("↶ تراجع وجبة", "success"); addLogEntry("undo-meal", code, sub.name); await saveSub(code, sub); }
   else if (action === "undo-salad" && sub.saladsUsed > 0) { sub.saladsUsed--; showToast("↶ تراجع سلطة", "success"); addLogEntry("undo-salad", code, sub.name); await saveSub(code, sub); }
   else if (action === "delete") {
+    if (currentRole !== "manager") { showToast("🔒 هذا الإجراء متاح للمدير فقط", "error"); return; }
     const mr = Math.max(sub.mealsTotal - sub.mealsUsed, 0), sr = Math.max(sub.saladsTotal - sub.saladsUsed, 0);
     if (mr <= 0 && sr <= 0 && !sub.archived) {
       if (!confirm(`نقل بطاقة ${sub.name} إلى الأرشيف بدل حذفها نهائيًا؟`)) return;
@@ -1011,6 +1028,7 @@ $("staff-list").addEventListener("click", async (e) => {
     }
   }
   else if (action === "renew") {
+    if (currentRole !== "manager") { showToast("🔒 هذا الإجراء متاح للمدير فقط", "error"); return; }
     const newMeals = parseInt(prompt(`كم عدد الوجبات الجديدة لـ ${sub.name}؟`, sub.mealsTotal) || "", 10);
     const newSalads = parseInt(prompt(`كم عدد السلطات الجديدة لـ ${sub.name}؟`, sub.saladsTotal) || "", 10);
     if (isNaN(newMeals) && isNaN(newSalads)) return;
@@ -1031,7 +1049,7 @@ $("create-btn").addEventListener("click", async () => {
   const name = $("new-name").value.trim(), phone = $("new-phone").value.trim(), meals = parseInt($("new-meals").value, 10) || 0, salads = parseInt($("new-salads").value, 10) || 0, notes = $("new-notes").value.trim();
   if (!name) { showToast("أدخل اسم العميل", "error"); return; } if (meals === 0 && salads === 0) { showToast("أدخل عدد وجبات أو سلطات", "error"); return; }
   if (phone && normalizePhone(phone).length < 7) { showToast("رقم الموبايل غير صحيح", "error"); return; }
-  if (!loaded) await loadData(); const code = genCode(); data[code] = { name, phone, mealsTotal: meals, mealsUsed: 0, saladsTotal: salads, saladsUsed: 0, archived: false, notes };
+  if (!loaded) await loadData(); const code = genCode(); data[code] = { name, phone, mealsTotal: meals, mealsUsed: 0, saladsTotal: salads, saladsUsed: 0, archived: false, notes, createdAt: new Date().toISOString() };
   await saveSub(code, data[code]); addLogEntry("create", code, name, `${meals} وجبة + ${salads} سلطة`); $("new-name").value = ""; $("new-phone").value = ""; $("new-meals").value = ""; $("new-salads").value = ""; $("new-notes").value = "";
   renderStaffList(); showToast(`✓ البطاقة جاهزة — الرمز ${code}`, "success");
   const cb = $("create-btn"); cb.classList.add("tb-shake"); setTimeout(() => cb.classList.remove("tb-shake"), 400);
