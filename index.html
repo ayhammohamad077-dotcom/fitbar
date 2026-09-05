@@ -102,7 +102,12 @@
   .dual-input{display:grid;grid-template-columns:1fr 1fr;gap:10px;}@media(max-width:380px){.dual-input{grid-template-columns:1fr;}}
   @keyframes tbShake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
   .tb-shake{animation:tbShake .4s cubic-bezier(.36,.07,.19,.97) both;}
-  .meal-greeting{font-size:12px;color:var(--gray);margin-bottom:2px;font-weight:600;}
+  .meal-greeting-top{font-size:13px;color:var(--gray);font-weight:700;margin-bottom:10px;}
+  .meal-avatar{width:44px;height:44px;border-radius:13px;background:linear-gradient(145deg,var(--purple),var(--purple-dark));display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+  .meal-status{display:inline-block;font-size:11px;font-weight:700;border-radius:20px;padding:2px 10px;margin-top:2px;}
+  .status-active{background:rgba(34,197,94,.12);color:#16a34a;}
+  .status-low{background:rgba(245,158,11,.12);color:#b45309;}
+  .status-done{background:rgba(239,68,68,.12);color:#dc2626;}
   .low-balance-warning{background:rgba(245,158,11,0.12);color:#b45309;border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:700;margin-bottom:14px;text-align:center;}
   .low-badge{display:inline-block;font-size:10px;font-weight:700;background:rgba(245,158,11,0.15);color:#b45309;border:1px solid rgba(245,158,11,0.3);border-radius:20px;padding:2px 8px;margin-right:6px;vertical-align:middle;}
   .staff-item-low{border-color:rgba(245,158,11,0.4)!important;}
@@ -216,6 +221,10 @@ body{
 .archived-badge{background:rgba(255,255,255,.08);color:var(--tb-muted);}
 .staff-notes{background:rgba(139,92,246,.12);border-color:rgba(180,140,255,.3);color:#d8d3e8;}
 .meal-greeting{color:var(--tb-muted);}
+.meal-greeting-top{color:var(--tb-muted);}
+.status-active{background:rgba(45,212,163,.15);color:#2dd4a3;}
+.status-low{background:rgba(245,158,11,.18);color:#fbbf24;}
+.status-done{background:rgba(239,68,68,.18);color:#f87171;}
 .qr-row{background:#0c0e14;border:1px solid var(--tb-border);border-radius:18px;padding:16px;}
 .qr-box{padding:7px;background:#fff;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.25);}
 .empty{color:#a5a9b6;}
@@ -812,13 +821,21 @@ function isLowBalance(sub) {
   return (mr > 0 && mr <= 2) || (sr > 0 && sr <= 2);
 }
 
+function statusBadge(sub) {
+  const mr = Math.max(sub.mealsTotal - sub.mealsUsed, 0), sr = Math.max(sub.saladsTotal - sub.saladsUsed, 0);
+  if (mr <= 0 && sr <= 0) return { icon: "🔴", label: "منتهية", cls: "status-done" };
+  if (isLowBalance(sub)) return { icon: "🟡", label: "قربت تنتهي", cls: "status-low" };
+  return { icon: "🟢", label: "نشطة", cls: "status-active" };
+}
+
 function mealCardHTML(code, sub, opts = {}) {
   const mr = Math.max(sub.mealsTotal - sub.mealsUsed, 0), sr = Math.max(sub.saladsTotal - sub.saladsUsed, 0);
   let md = "", sd = "";
   for (let i = 0; i < sub.mealsTotal; i++) md += `<div class="dot ${i < sub.mealsUsed ? 'used' : ''}"></div>`;
   for (let i = 0; i < sub.saladsTotal; i++) sd += `<div class="dot-green ${i < sub.saladsUsed ? 'used' : ''}"></div>`;
   const lowWarning = isLowBalance(sub) ? `<div class="low-balance-warning">⚠️ رصيدك قارب على الانتهاء، لا تنسَ التجديد قريبًا</div>` : "";
-  return `<div class="meal-card"><div class="meal-header"><div><div class="meal-greeting">${getGreeting()}،</div><h2 class="meal-name">${sub.name}</h2></div><span class="meal-code">${code}</span></div>${lowWarning}<div class="meal-section"><div class="meal-section-title">🍽️ الوجبات</div><div class="meal-stats"><div class="remaining">${mr}</div><div class="remaining-text">من أصل <strong>${sub.mealsTotal}</strong> وجبة</div></div><div class="dots">${md}</div></div><div class="meal-section"><div class="meal-section-title">🥗 السلطات</div><div class="meal-stats"><div class="remaining-green">${sr}</div><div class="remaining-text">من أصل <strong>${sub.saladsTotal}</strong> سلطة</div></div><div class="dots">${sd}</div></div>${opts.showQr ? `<div class="qr-row"><div class="qr-box" id="qr-${code}"></div></div>` : ""}</div>`;
+  const st = statusBadge(sub);
+  return `<div class="meal-card"><div class="meal-greeting-top">${getGreeting()}</div><div class="meal-header"><div style="display:flex;align-items:center;gap:10px;"><div class="meal-avatar">🥗</div><div><h2 class="meal-name">${sub.name}</h2><span class="meal-status ${st.cls}">${st.icon} ${st.label}</span></div></div><span class="meal-code">${code}</span></div>${lowWarning}<div class="meal-section"><div class="meal-section-title">🍽️ الوجبات</div><div class="meal-stats"><div class="remaining">${mr}</div><div class="remaining-text">من أصل <strong>${sub.mealsTotal}</strong> وجبة</div></div><div class="dots">${md}</div></div><div class="meal-section"><div class="meal-section-title">🥗 السلطات</div><div class="meal-stats"><div class="remaining-green">${sr}</div><div class="remaining-text">من أصل <strong>${sub.saladsTotal}</strong> سلطة</div></div><div class="dots">${sd}</div></div>${opts.showQr ? `<div class="qr-row"><div class="qr-box" id="qr-${code}"></div></div>` : ""}</div>`;
 }
 
 async function doLookup() {
@@ -1139,23 +1156,7 @@ applyStaticLanguage();
     staff.insertBefore(h,sw);
   }
   function addCustomerHero(){
-    const box=$('customer-result');
-    if(!box || document.getElementById('tb-customer-hero')) return;
-    /* The original result is still rendered normally below this visual summary.
-       Once a customer is found, the hero mirrors the same data for a faster scan. */
-    const old=box.querySelector('.meal-card');
-    if(!old) return;
-    const name=old.querySelector('.meal-name')?.textContent?.trim() || 'بطاقتي';
-    const code=old.querySelector('.meal-code')?.textContent?.trim() || '—';
-    const meal=old.querySelector('.remaining')?.textContent?.trim() || '0';
-    const salad=old.querySelector('.remaining-green')?.textContent?.trim() || '0';
-    const hero=make('div','tb-customer-hero'); hero.id='tb-customer-hero';
-    hero.innerHTML=`<div class="tb-hero-row"><div style="display:flex;align-items:center;gap:10px"><div class="tb-avatar">🥗</div><div><div class="tb-eyebrow">${T('heroSub')}</div><div class="tb-hero-name"></div><div class="tb-hero-code"></div></div></div><div class="tb-status">${T('heroStatus')}</div></div><div class="tb-balance-grid"><div class="tb-balance"><small>${T('heroMealsLabel')}</small><strong style="color:#c3a5ff"></strong><em>${T('unitMeal')}</em></div><div class="tb-balance"><small>${T('heroSaladsLabel')}</small><strong style="color:#56e3b2"></strong><em>${T('unitSalad')}</em></div></div>`;
-    hero.querySelector('.tb-hero-name').textContent=name;
-    hero.querySelector('.tb-hero-code').textContent=(window.FITBAR_LANG==='en'?'Card code ':'رمز البطاقة ')+code;
-    hero.querySelectorAll('.tb-balance strong')[0].textContent=meal;
-    hero.querySelectorAll('.tb-balance strong')[1].textContent=salad;
-    box.insertBefore(hero,old);
+    return; // merged into mealCardHTML — no separate hero card anymore
   }
   function addQuickActions(){
     const customer=$('panel-customer');
@@ -1200,7 +1201,6 @@ applyStaticLanguage();
     const head=$('tb-staff-head'); if(head){ const h2=head.querySelector('h2'), p=head.querySelector('p'); if(h2) h2.textContent=T('opsTitle'); if(p) p.textContent=T('opsSub'); }
     const quick=$('tb-quick'); if(quick){ const btns=quick.querySelectorAll('button'); if(btns[0]) btns[0].textContent=T('quickFind'); if(btns[1]) btns[1].textContent=T('quickCard'); }
     const nav=$('tb-bottom-nav'); if(nav){ const btns=nav.querySelectorAll('button'); const keys=['navHome','navCard','navAdmin']; btns.forEach((b,i)=>{ const icon=b.querySelector('.nav-icon'); b.innerHTML=''; if(icon) b.appendChild(icon); b.append(T(keys[i])); }); }
-    const hero=$('tb-customer-hero'); if(hero){ hero.remove(); addCustomerHero(); }
   }
   window.retranslateChrome = retranslateChrome;
   function init(){
