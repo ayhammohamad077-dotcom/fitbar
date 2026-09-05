@@ -433,22 +433,73 @@ input:focus,select:focus,textarea:focus{border-color:rgba(167,139,250,.8)!import
 
 </head>
 <body>
+<script>
+window.FITBAR_LANG = localStorage.getItem('fitbar_lang') || 'ar';
+window.FITBAR_I18N = {
+  ar: {
+    tagline:"Fresh To Meet You!", offline:"⚠️ وضع عدم الاتصال — سيتم المزامنة لاحقاً",
+    chooseLogin:"اختر طريقة الدخول", customerBtn:"👤 عرض بطاقتي", customerBtnSub:"دخول سريع للعميل",
+    staffBtn:"👨‍💼 دخول الموظفين", staffBtnSub:"لوحة الإدارة", staffCodeTitle:"كود الموظف",
+    staffCodeLabel:"أدخل كود الموظف", loginBtn:"دخول", backBtn:"رجوع",
+    tabCustomer:"بطاقتي", tabStaff:"لوحة الإدارة", lookupTitle:"ابحث عن بطاقتك",
+    lookupLabel:"رقم الموبايل أو رمز البطاقة", lookupBtn:"عرض رصيدي", lookupHint:"ابحث برقم الموبايل أو رمز البطاقة الخاص بك",
+    subSubs:"📋 الاشتراكات", subLog:"🕒 السجل", subReports:"📊 التقارير",
+    createTitle:"إضافة اشتراك جديد", nameLabel:"اسم العميل", phoneLabel:"📱 رقم الموبايل",
+    mealsLabel:"🍽️ عدد الوجبات", saladsLabel:"🥗 عدد السلطات", notesLabel:"📝 ملاحظات خاصة (تظهر للموظفين فقط)",
+    createBtn:"إنشاء البطاقة", scanTitle:"📷 مسح رمز QR", scanBtn:"مسح رمز العميل",
+    subsTitle:"الاشتراكات الحالية", searchPh:"ابحث بالاسم أو الرمز أو رقم الموبايل…",
+    filterAll:"الكل", filterActive:"نشطة", filterLow:"قاربت تخلص", filterDone:"خلصت", filterArchived:"🗄️ الأرشيف",
+    systemLive:"النظام يعمل", kpiExp:"تجربة العميل", kpiAccess:"الوصول",
+    opsTitle:"لوحة التشغيل", opsSub:"إدارة الاشتراكات والعمليات من مكان واحد",
+    quickFind:"🔎 البحث عن بطاقتي", quickCard:"📋 عرض البطاقة",
+    navHome:"الرئيسية", navCard:"بطاقتي", navAdmin:"الإدارة",
+    heroSub:"اشتراك THE FIT BAR", heroStatus:"نشطة", heroMealsLabel:"الوجبات المتبقية", heroSaladsLabel:"السلطات المتبقية",
+    unitMeal:"وجبة", unitSalad:"سلطة", cardTitleQR:"📷 مسح رمز QR",
+    monthlyTitle:"مقارنة الأداء", monthlyVs:"مقارنة الشهر الحالي بالشهر السابق"
+  },
+  en: {
+    tagline:"Fresh To Meet You!", offline:"⚠️ Offline mode — will sync later",
+    chooseLogin:"Choose login type", customerBtn:"👤 View my card", customerBtnSub:"Quick customer login",
+    staffBtn:"👨‍💼 Staff login", staffBtnSub:"Admin panel", staffCodeTitle:"Staff code",
+    staffCodeLabel:"Enter staff code", loginBtn:"Login", backBtn:"Back",
+    tabCustomer:"My Card", tabStaff:"Admin Panel", lookupTitle:"Find your card",
+    lookupLabel:"Mobile number or card code", lookupBtn:"View balance", lookupHint:"Search by your mobile number or card code",
+    subSubs:"📋 Subscriptions", subLog:"🕒 Log", subReports:"📊 Reports",
+    createTitle:"Add new subscription", nameLabel:"Customer name", phoneLabel:"📱 Mobile number",
+    mealsLabel:"🍽️ Number of meals", saladsLabel:"🥗 Number of salads", notesLabel:"📝 Private notes (staff only)",
+    createBtn:"Create card", scanTitle:"📷 Scan QR code", scanBtn:"Scan customer code",
+    subsTitle:"Current subscriptions", searchPh:"Search by name, code, or mobile…",
+    filterAll:"All", filterActive:"Active", filterLow:"Running low", filterDone:"Finished", filterArchived:"🗄️ Archive",
+    systemLive:"System live", kpiExp:"Customer exp.", kpiAccess:"Access",
+    opsTitle:"Operations panel", opsSub:"Manage subscriptions and actions from one place",
+    quickFind:"🔎 Find my card", quickCard:"📋 View card",
+    navHome:"Home", navCard:"My Card", navAdmin:"Admin",
+    heroSub:"THE FIT BAR subscription", heroStatus:"Active", heroMealsLabel:"Meals remaining", heroSaladsLabel:"Salads remaining",
+    unitMeal:"meal", unitSalad:"salad", cardTitleQR:"📷 Scan QR code",
+    monthlyTitle:"Performance comparison", monthlyVs:"This month vs last month"
+  }
+};
+window.T = function(key){ const d = window.FITBAR_I18N[window.FITBAR_LANG] || window.FITBAR_I18N.ar; return d[key] || key; };
+</script>
 <div class="offline-badge" id="offline-badge">⚠️ وضع عدم الاتصال — سيتم المزامنة لاحقاً</div>
 <div class="wrap">
   <div class="header">
-    <div class="logo-wrap">
-      <div class="logo-icon">🥗</div>
-      <div>
-        <p style="margin:0;font-family:'Cairo',sans-serif;font-size:22px;font-weight:900;color:white;letter-spacing:2px;">THE FIT BAR</p>
-        <p class="tagline">Fresh To Meet You!</p>
+    <div class="logo-wrap" style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:9px;">
+        <div class="logo-icon">🥗</div>
+        <div>
+          <p style="margin:0;font-family:'Cairo',sans-serif;font-size:22px;font-weight:900;color:white;letter-spacing:2px;">THE FIT BAR</p>
+          <p class="tagline" id="app-tagline">Fresh To Meet You!</p>
+        </div>
       </div>
+      <button id="lang-toggle-btn" type="button" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:20px;padding:8px 14px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;">EN</button>
     </div>
   </div>
   <div class="content">
     <div id="login-screen" class="panel active">
       <div style="text-align:center;padding:20px 0;">
         <div style="font-size:48px;margin-bottom:20px;">🍽️</div>
-        <h2 style="color:var(--purple);margin-bottom:30px;">اختر طريقة الدخول</h2>
+        <h2 id="login-heading" style="color:var(--purple);margin-bottom:30px;">اختر طريقة الدخول</h2>
       </div>
       <div class="login-btn-group">
         <button class="btn btn-primary" id="login-customer-btn">👤 أنا عميل</button>
@@ -457,10 +508,10 @@ input:focus,select:focus,textarea:focus{border-color:rgba(167,139,250,.8)!import
     </div>
     <div id="staff-login-screen" class="panel">
       <div style="text-align:center;padding:20px 0;">
-        <h2 style="color:var(--purple);margin-bottom:30px;">كود الموظف</h2>
+        <h2 id="staff-login-heading" style="color:var(--purple);margin-bottom:30px;">كود الموظف</h2>
       </div>
       <div class="field">
-        <label>أدخل كود الموظف</label>
+        <label id="staff-code-label">أدخل كود الموظف</label>
         <input id="staff-code-input" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="666111">
       </div>
       <button class="btn btn-primary" id="staff-login-btn">دخول</button>
@@ -472,13 +523,13 @@ input:focus,select:focus,textarea:focus{border-color:rgba(167,139,250,.8)!import
     </div>
     <div id="panel-customer" class="panel">
       <div class="card">
-        <h3 class="card-title">ابحث عن بطاقتك</h3>
+        <h3 class="card-title" id="lookup-title">ابحث عن بطاقتك</h3>
         <div class="field">
-          <label>رقم الموبايل أو رمز البطاقة</label>
+          <label id="lookup-label">رقم الموبايل أو رمز البطاقة</label>
           <input id="customer-code" placeholder="مثال: 079xxxxxxx أو 4821" inputmode="tel" autocomplete="tel">
         </div>
         <button class="btn btn-primary" id="lookup-btn">عرض رصيدي</button>
-        <p class="hint">ابحث برقم الموبايل أو رمز البطاقة الخاص بك</p>
+        <p class="hint" id="lookup-hint">ابحث برقم الموبايل أو رمز البطاقة الخاص بك</p>
       </div>
       <div id="customer-result"></div>
     </div>
@@ -490,37 +541,37 @@ input:focus,select:focus,textarea:focus{border-color:rgba(167,139,250,.8)!import
       </div>
       <div id="staff-sub-subs" class="subpanel active">
         <div class="card">
-          <h3 class="card-title">إضافة اشتراك جديد</h3>
+          <h3 class="card-title" id="create-title">إضافة اشتراك جديد</h3>
           <div class="field">
-            <label>اسم العميل</label>
+            <label id="new-name-label">اسم العميل</label>
             <input id="new-name" placeholder="مثال: أحمد محمد">
           </div>
           <div class="field">
-            <label>📱 رقم الموبايل</label>
+            <label id="new-phone-label">📱 رقم الموبايل</label>
             <input id="new-phone" placeholder="مثال: 079xxxxxxx" inputmode="tel" autocomplete="tel">
           </div>
           <div class="dual-input">
             <div class="field">
-              <label>🍽️ عدد الوجبات</label>
+              <label id="new-meals-label">🍽️ عدد الوجبات</label>
               <input id="new-meals" type="number" min="0" placeholder="0">
             </div>
             <div class="field">
-              <label>🥗 عدد السلطات</label>
+              <label id="new-salads-label">🥗 عدد السلطات</label>
               <input id="new-salads" type="number" min="0" placeholder="0">
             </div>
           </div>
           <div class="field">
-            <label>📝 ملاحظات خاصة (تظهر للموظفين فقط)</label>
+            <label id="new-notes-label">📝 ملاحظات خاصة (تظهر للموظفين فقط)</label>
             <input id="new-notes" placeholder="مثال: حساسية من المكسرات، يفضل بدون بصل...">
           </div>
           <button class="btn btn-primary" id="create-btn">إنشاء البطاقة</button>
         </div>
         <div class="card">
-          <h3 class="card-title">📷 مسح رمز QR</h3>
+          <h3 class="card-title" id="scan-title">📷 مسح رمز QR</h3>
           <button class="btn btn-scan" id="open-scan-btn">مسح رمز العميل</button>
         </div>
         <hr class="divider">
-        <h3 class="section-title">الاشتراكات الحالية <span id="subs-count" style="font-size:11px;font-weight:700;color:var(--tb-muted,var(--gray));background:rgba(139,92,246,.15);border-radius:20px;padding:2px 10px;margin-inline-start:6px;">0</span></h3>
+        <h3 class="section-title"><span id="subs-title-text">الاشتراكات الحالية</span> <span id="subs-count" style="font-size:11px;font-weight:700;color:var(--tb-muted,var(--gray));background:rgba(139,92,246,.15);border-radius:20px;padding:2px 10px;margin-inline-start:6px;">0</span></h3>
         <div class="search-row">
           <input id="staff-search" placeholder="ابحث بالاسم أو الرمز أو رقم الموبايل…">
         </div>
@@ -543,6 +594,11 @@ input:focus,select:focus,textarea:focus{border-color:rgba(167,139,250,.8)!import
       <div id="staff-sub-reports" class="subpanel">
         <h3 class="section-title"><span class="section-num">📊</span> نظرة عامة</h3>
         <div class="stats-grid" id="stats-grid"></div>
+        <div class="card" id="monthly-comparison-card">
+          <h3 class="card-title" id="monthly-comparison-title">📈 مقارنة الأداء</h3>
+          <p class="hint" id="monthly-comparison-sub" style="margin:0 0 12px;">مقارنة الشهر الحالي بالشهر السابق</p>
+          <div id="monthly-comparison-list"></div>
+        </div>
         <div class="card">
           <h3 class="card-title">تصدير البيانات</h3>
           <p class="hint" style="margin:0 0 12px;">حمّل نسخة من كل الاشتراكات كملف CSV</p>
@@ -596,6 +652,39 @@ let currentMode = null, activeFilter = "all", activeSearch = "";
 let activeSubtab = "subs", currentPage = 1, qrTimers = {};
 
 const $ = (id) => document.getElementById(id);
+const T = window.T;
+
+function applyStaticLanguage() {
+  const set = (id, key) => { const el = $(id); if (el) el.textContent = T(key); };
+  const setPh = (id, key) => { const el = $(id); if (el) el.placeholder = T(key); };
+  set("app-tagline", "tagline");
+  set("login-heading", "chooseLogin");
+  const cb = $("login-customer-btn"); if (cb) cb.innerHTML = `${T("customerBtn")}<small>${T("customerBtnSub")}</small>`;
+  const sb = $("login-staff-btn"); if (sb) sb.innerHTML = `${T("staffBtn")}<small>${T("staffBtnSub")}</small>`;
+  set("staff-login-heading", "staffCodeTitle"); set("staff-code-label", "staffCodeLabel");
+  set("staff-login-btn", "loginBtn"); set("back-to-login-btn", "backBtn");
+  set("tab-customer", "tabCustomer"); set("tab-staff", "tabStaff");
+  set("lookup-title", "lookupTitle"); set("lookup-label", "lookupLabel"); set("lookup-btn", "lookupBtn"); set("lookup-hint", "lookupHint");
+  setPh("customer-code", "lookupLabel");
+  document.querySelectorAll("#staff-subswitcher button").forEach((b) => { const map = { subs: "subSubs", log: "subLog", reports: "subReports" }; b.textContent = T(map[b.dataset.sub]); });
+  set("create-title", "createTitle"); set("new-name-label", "nameLabel"); set("new-phone-label", "phoneLabel");
+  set("new-meals-label", "mealsLabel"); set("new-salads-label", "saladsLabel"); set("new-notes-label", "notesLabel");
+  set("create-btn", "createBtn"); set("scan-title", "scanTitle"); set("open-scan-btn", "scanBtn");
+  set("subs-title-text", "subsTitle"); setPh("staff-search", "searchPh");
+  document.querySelectorAll("#filter-chips .chip").forEach((c) => { const map = { all: "filterAll", active: "filterActive", low: "filterLow", done: "filterDone", archived: "filterArchived" }; c.textContent = T(map[c.dataset.filter]); });
+  set("offline-badge", "offline");
+  set("monthly-comparison-title", "monthlyTitle"); set("monthly-comparison-sub", "monthlyVs");
+  document.documentElement.lang = window.FITBAR_LANG; document.documentElement.dir = window.FITBAR_LANG === "en" ? "ltr" : "rtl";
+  const langBtn = $("lang-toggle-btn"); if (langBtn) langBtn.textContent = window.FITBAR_LANG === "ar" ? "EN" : "AR";
+}
+
+function applyLanguage(lang) {
+  window.FITBAR_LANG = lang; localStorage.setItem("fitbar_lang", lang);
+  applyStaticLanguage();
+  if (window.retranslateChrome) window.retranslateChrome();
+  if (currentMode === "staff") switchSubtab(activeSubtab);
+}
+
 
 function showToast(msg, type = "info") {
   const t = $("toast"); t.textContent = msg; t.className = "toast show " + type;
@@ -809,6 +898,23 @@ async function renderStats() {
   const codes = Object.keys(data); const tc = codes.length; const tm = codes.reduce((s, c) => s + Math.max(data[c].mealsTotal - data[c].mealsUsed, 0), 0); const ts = codes.reduce((s, c) => s + Math.max(data[c].saladsTotal - data[c].saladsUsed, 0), 0); const fc = codes.filter((c) => (data[c].mealsTotal - data[c].mealsUsed) <= 0 && (data[c].saladsTotal - data[c].saladsUsed) <= 0).length;
   const now = new Date(), wa = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); const ut = log.filter((e) => (e.action === "use-meal" || e.action === "use-salad") && isSameDay(new Date(e.ts), now)).length; const uw = log.filter((e) => (e.action === "use-meal" || e.action === "use-salad") && new Date(e.ts) >= wa).length;
   grid.innerHTML = `<div class="stat-card"><div class="stat-icon">👥</div><div class="stat-value">${tc}</div><div class="stat-label">إجمالي العملاء</div></div><div class="stat-card"><div class="stat-icon">🍽️</div><div class="stat-value">${tm}</div><div class="stat-label">وجبات متبقية</div></div><div class="stat-card"><div class="stat-icon">🥗</div><div class="stat-value">${ts}</div><div class="stat-label">سلطات متبقية</div></div><div class="stat-card"><div class="stat-icon">📅</div><div class="stat-value">${ut}</div><div class="stat-label">خُصم اليوم</div></div><div class="stat-card"><div class="stat-icon">📈</div><div class="stat-value">${uw}</div><div class="stat-label">خُصم هذا الأسبوع</div></div><div class="stat-card wide"><div><div class="stat-label" style="margin:0 0 4px;">بطاقات خلصت بالكامل</div><div class="stat-value" style="font-size:20px;">${fc}</div></div><div class="stat-icon" style="font-size:26px;margin:0;">✅</div></div>`;
+  renderMonthlyComparison();
+}
+
+function monthKey(d) { return d.getFullYear() + "-" + d.getMonth(); }
+function renderMonthlyComparison() {
+  const box = $("monthly-comparison-list"); if (!box) return;
+  const now = new Date(); const thisKey = monthKey(now);
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1); const lastKey = monthKey(lastMonthDate);
+  const count = (predicate, key) => log.filter((e) => predicate(e) && monthKey(new Date(e.ts)) === key).length;
+  const newCustomers = { cur: count((e) => e.action === "create", thisKey), prev: count((e) => e.action === "create", lastKey) };
+  const mealsUsed = { cur: count((e) => e.action === "use-meal", thisKey), prev: count((e) => e.action === "use-meal", lastKey) };
+  const saladsUsed = { cur: count((e) => e.action === "use-salad", thisKey), prev: count((e) => e.action === "use-salad", lastKey) };
+  const renews = { cur: count((e) => e.action === "renew", thisKey), prev: count((e) => e.action === "renew", lastKey) };
+  const pct = (cur, prev) => { if (prev === 0) return cur > 0 ? 100 : 0; return Math.round(((cur - prev) / prev) * 100); };
+  const row = (icon, label, cur, prev) => { const p = pct(cur, prev); const up = p >= 0; return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border-light,rgba(0,0,0,.06));"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:16px;">${icon}</span><div><div style="font-size:12px;color:var(--gray);">${label}</div><div style="font-size:18px;font-weight:800;">${cur}</div></div></div><div style="font-size:12px;font-weight:800;padding:4px 10px;border-radius:20px;background:${up ? "rgba(45,212,163,.15)" : "rgba(239,68,68,.15)"};color:${up ? "#2dd4a3" : "#ef4444"};">${up ? "↑" : "↓"} ${Math.abs(p)}%</div></div>`; };
+  const labels = window.FITBAR_LANG === "en" ? { nc: "New customers", mu: "Meals used", su: "Salads used", rn: "Renewals" } : { nc: "عملاء جدد", mu: "وجبات مستخدمة", su: "سلطات مستخدمة", rn: "عمليات تجديد" };
+  box.innerHTML = row("👥", labels.nc, newCustomers.cur, newCustomers.prev) + row("🍽️", labels.mu, mealsUsed.cur, mealsUsed.prev) + row("🥗", labels.su, saladsUsed.cur, saladsUsed.prev) + row("🔄", labels.rn, renews.cur, renews.prev);
 }
 
 function exportCSV() {
@@ -937,6 +1043,9 @@ $("filter-chips").addEventListener("click", (e) => { const chip = e.target.close
 
 $("export-btn").addEventListener("click", exportCSV);
 
+$("lang-toggle-btn")?.addEventListener("click", () => applyLanguage(window.FITBAR_LANG === "ar" ? "en" : "ar"));
+applyStaticLanguage();
+
 (async () => { if (navigator.onLine) syncPending(); })();
 </script>
 
@@ -1004,12 +1113,13 @@ $("export-btn").addEventListener("click", exportCSV);
    ========================================================= */
 (function(){
   const $ = id => document.getElementById(id);
+  const T = window.T;
   function make(tag, cls, html){ const e=document.createElement(tag); if(cls)e.className=cls; if(html!==undefined)e.innerHTML=html; return e; }
   function addBrandChrome(){
     const content=document.querySelector('.content');
     if(!content || document.getElementById('tb-brand-strip')) return;
     const strip=make('div','tb-brand-strip'); strip.id='tb-brand-strip';
-    strip.innerHTML='<div class="tb-brand-left"><div class="tb-brand-mark">🥗</div><div><div class="tb-brand-name">THE FIT BAR | JO</div><div class="tb-brand-sub">Fresh To Meet You!</div></div></div><div class="tb-live"><i></i> النظام يعمل</div>';
+    strip.innerHTML=`<div class="tb-brand-left"><div class="tb-brand-mark">🥗</div><div><div class="tb-brand-name">THE FIT BAR | JO</div><div class="tb-brand-sub">${T('tagline')}</div></div></div><div class="tb-live"><i></i> ${T('systemLive')}</div>`;
     content.insertBefore(strip,content.firstChild);
   }
   function addKpis(){
@@ -1017,7 +1127,7 @@ $("export-btn").addEventListener("click", exportCSV);
     const customer=$('panel-customer');
     if(!content || !customer || document.getElementById('tb-kpi')) return;
     const k=make('div','tb-kpi'); k.id='tb-kpi';
-    k.innerHTML='<div class="tb-kpi-card"><div class="tb-kpi-label">تجربة العميل</div><div class="tb-kpi-value purple">PREMIUM</div></div><div class="tb-kpi-card"><div class="tb-kpi-label">الوصول</div><div class="tb-kpi-value green">24/7</div></div><div class="tb-kpi-card"><div class="tb-kpi-label">QR</div><div class="tb-kpi-value gold">LIVE</div></div>';
+    k.innerHTML=`<div class="tb-kpi-card"><div class="tb-kpi-label">${T('kpiExp')}</div><div class="tb-kpi-value purple">PREMIUM</div></div><div class="tb-kpi-card"><div class="tb-kpi-label">${T('kpiAccess')}</div><div class="tb-kpi-value green">24/7</div></div><div class="tb-kpi-card"><div class="tb-kpi-label">QR</div><div class="tb-kpi-value gold">LIVE</div></div>`;
     content.insertBefore(k,customer);
   }
   function addStaffHead(){
@@ -1025,7 +1135,7 @@ $("export-btn").addEventListener("click", exportCSV);
     const sw=$('staff-subswitcher');
     if(!staff || !sw || document.getElementById('tb-staff-head')) return;
     const h=make('div','tb-staff-head'); h.id='tb-staff-head';
-    h.innerHTML='<div><h2>لوحة التشغيل</h2><p>إدارة الاشتراكات والعمليات من مكان واحد</p></div><div class="tb-mini-badge">FIT BAR ADMIN</div>';
+    h.innerHTML=`<div><h2>${T('opsTitle')}</h2><p>${T('opsSub')}</p></div><div class="tb-mini-badge">FIT BAR ADMIN</div>`;
     staff.insertBefore(h,sw);
   }
   function addCustomerHero(){
@@ -1040,9 +1150,9 @@ $("export-btn").addEventListener("click", exportCSV);
     const meal=old.querySelector('.remaining')?.textContent?.trim() || '0';
     const salad=old.querySelector('.remaining-green')?.textContent?.trim() || '0';
     const hero=make('div','tb-customer-hero'); hero.id='tb-customer-hero';
-    hero.innerHTML='<div class="tb-hero-row"><div style="display:flex;align-items:center;gap:10px"><div class="tb-avatar">🥗</div><div><div class="tb-eyebrow">اشتراك THE FIT BAR</div><div class="tb-hero-name"></div><div class="tb-hero-code"></div></div></div><div class="tb-status">نشطة</div></div><div class="tb-balance-grid"><div class="tb-balance"><small>الوجبات المتبقية</small><strong style="color:#c3a5ff"></strong><em>وجبة</em></div><div class="tb-balance"><small>السلطات المتبقية</small><strong style="color:#56e3b2"></strong><em>سلطة</em></div></div>';
+    hero.innerHTML=`<div class="tb-hero-row"><div style="display:flex;align-items:center;gap:10px"><div class="tb-avatar">🥗</div><div><div class="tb-eyebrow">${T('heroSub')}</div><div class="tb-hero-name"></div><div class="tb-hero-code"></div></div></div><div class="tb-status">${T('heroStatus')}</div></div><div class="tb-balance-grid"><div class="tb-balance"><small>${T('heroMealsLabel')}</small><strong style="color:#c3a5ff"></strong><em>${T('unitMeal')}</em></div><div class="tb-balance"><small>${T('heroSaladsLabel')}</small><strong style="color:#56e3b2"></strong><em>${T('unitSalad')}</em></div></div>`;
     hero.querySelector('.tb-hero-name').textContent=name;
-    hero.querySelector('.tb-hero-code').textContent='رمز البطاقة '+code;
+    hero.querySelector('.tb-hero-code').textContent=(window.FITBAR_LANG==='en'?'Card code ':'رمز البطاقة ')+code;
     hero.querySelectorAll('.tb-balance strong')[0].textContent=meal;
     hero.querySelectorAll('.tb-balance strong')[1].textContent=salad;
     box.insertBefore(hero,old);
@@ -1051,7 +1161,7 @@ $("export-btn").addEventListener("click", exportCSV);
     const customer=$('panel-customer');
     if(!customer || document.getElementById('tb-quick')) return;
     const q=make('div','tb-quick'); q.id='tb-quick';
-    q.innerHTML='<button type="button" id="tb-focus-code">🔎 البحث عن بطاقتي</button><button type="button" id="tb-scroll-card">📋 عرض البطاقة</button>';
+    q.innerHTML=`<button type="button" id="tb-focus-code">${T('quickFind')}</button><button type="button" id="tb-scroll-card">${T('quickCard')}</button>`;
     const card=customer.querySelector('.card');
     if(card) customer.insertBefore(q,card);
     $('tb-focus-code')?.addEventListener('click',()=>{$('customer-code')?.focus();$('customer-code')?.scrollIntoView({behavior:'smooth',block:'center'});});
@@ -1059,8 +1169,8 @@ $("export-btn").addEventListener("click", exportCSV);
   }
   function addBottomNav(){
     if(document.getElementById('tb-bottom-nav')) return;
-    const nav=make('nav','tb-bottom-nav'); nav.id='tb-bottom-nav'; nav.setAttribute('aria-label','تنقل سريع');
-    nav.innerHTML='<button type="button" data-nav="top" class="active"><span class="nav-icon">⌂</span>الرئيسية</button><button type="button" data-nav="customer"><span class="nav-icon">💳</span>بطاقتي</button><button type="button" data-nav="staff"><span class="nav-icon">⚙️</span>الإدارة</button>';
+    const nav=make('nav','tb-bottom-nav'); nav.id='tb-bottom-nav'; nav.setAttribute('aria-label','quick nav');
+    nav.innerHTML=`<button type="button" data-nav="top" class="active"><span class="nav-icon">⌂</span>${T('navHome')}</button><button type="button" data-nav="customer"><span class="nav-icon">💳</span>${T('navCard')}</button><button type="button" data-nav="staff"><span class="nav-icon">⚙️</span>${T('navAdmin')}</button>`;
     document.body.appendChild(nav);
     nav.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
       const t=b.dataset.nav;
@@ -1072,7 +1182,7 @@ $("export-btn").addEventListener("click", exportCSV);
   }
   function addTopButton(){
     if(document.getElementById('tb-back-top')) return;
-    const b=make('button','tb-back-top','↑'); b.id='tb-back-top'; b.setAttribute('aria-label','العودة للأعلى'); document.body.appendChild(b);
+    const b=make('button','tb-back-top','↑'); b.id='tb-back-top'; b.setAttribute('aria-label','scroll to top'); document.body.appendChild(b);
     b.addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
     window.addEventListener('scroll',()=>{b.style.display=window.scrollY>380?'grid':'none';},{passive:true});
   }
@@ -1084,6 +1194,15 @@ $("export-btn").addEventListener("click", exportCSV);
   function improveButtons(){
     document.querySelectorAll('button').forEach(b=>{b.addEventListener('click',()=>{b.classList.add('tb-pressed');setTimeout(()=>b.classList.remove('tb-pressed'),160)},{passive:true});});
   }
+  function retranslateChrome(){
+    const strip=$('tb-brand-strip'); if(strip){ strip.querySelector('.tb-brand-sub').textContent=T('tagline'); strip.querySelector('.tb-live').innerHTML=`<i></i> ${T('systemLive')}`; }
+    const kpi=$('tb-kpi'); if(kpi){ const labels=kpi.querySelectorAll('.tb-kpi-label'); if(labels[0]) labels[0].textContent=T('kpiExp'); if(labels[1]) labels[1].textContent=T('kpiAccess'); }
+    const head=$('tb-staff-head'); if(head){ const h2=head.querySelector('h2'), p=head.querySelector('p'); if(h2) h2.textContent=T('opsTitle'); if(p) p.textContent=T('opsSub'); }
+    const quick=$('tb-quick'); if(quick){ const btns=quick.querySelectorAll('button'); if(btns[0]) btns[0].textContent=T('quickFind'); if(btns[1]) btns[1].textContent=T('quickCard'); }
+    const nav=$('tb-bottom-nav'); if(nav){ const btns=nav.querySelectorAll('button'); const keys=['navHome','navCard','navAdmin']; btns.forEach((b,i)=>{ const icon=b.querySelector('.nav-icon'); b.innerHTML=''; if(icon) b.appendChild(icon); b.append(T(keys[i])); }); }
+    const hero=$('tb-customer-hero'); if(hero){ hero.remove(); addCustomerHero(); }
+  }
+  window.retranslateChrome = retranslateChrome;
   function init(){
     addBrandChrome(); addKpis(); addQuickActions(); addStaffHead(); addBottomNav(); addTopButton(); observeCustomer(); improveButtons();
   }
