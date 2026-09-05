@@ -100,6 +100,15 @@
   .offline-badge{position:fixed;top:0;left:0;right:0;background:var(--warning);color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:700;z-index:100;font-family:'Cairo',sans-serif;transform:translateY(-100%);transition:transform .3s;}
   .offline-badge.show{transform:translateY(0);}
   .dual-input{display:grid;grid-template-columns:1fr 1fr;gap:10px;}@media(max-width:380px){.dual-input{grid-template-columns:1fr;}}
+  @keyframes tbShake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
+  .tb-shake{animation:tbShake .4s cubic-bezier(.36,.07,.19,.97) both;}
+  .meal-greeting{font-size:12px;color:var(--gray);margin-bottom:2px;font-weight:600;}
+  .low-balance-warning{background:rgba(245,158,11,0.12);color:#b45309;border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:700;margin-bottom:14px;text-align:center;}
+  .low-badge{display:inline-block;font-size:10px;font-weight:700;background:rgba(245,158,11,0.15);color:#b45309;border:1px solid rgba(245,158,11,0.3);border-radius:20px;padding:2px 8px;margin-right:6px;vertical-align:middle;}
+  .staff-item-low{border-color:rgba(245,158,11,0.4)!important;}
+  .staff-item-archived{opacity:.85;}
+  .archived-badge{display:inline-block;font-size:10px;font-weight:700;background:rgba(107,114,128,0.18);color:var(--gray);border-radius:20px;padding:2px 8px;margin-right:6px;vertical-align:middle;}
+  .staff-notes{font-size:12px;background:rgba(139,92,246,0.08);border:1px dashed rgba(139,92,246,0.25);border-radius:8px;padding:6px 10px;margin:8px 0;color:var(--gray);}
 
 
 /* =========================================================
@@ -202,6 +211,11 @@ body{
 .remaining-green{color:var(--tb-green);text-shadow:0 6px 24px rgba(45,212,163,.12);}
 .dots{gap:5px;}
 .dot,.dot-green{width:12px;height:12px;}
+.low-balance-warning{background:rgba(245,158,11,.14);color:#fbbf24;border-color:rgba(245,158,11,.35);}
+.low-badge{background:rgba(245,158,11,.18);color:#fbbf24;border-color:rgba(245,158,11,.35);}
+.archived-badge{background:rgba(255,255,255,.08);color:var(--tb-muted);}
+.staff-notes{background:rgba(139,92,246,.12);border-color:rgba(180,140,255,.3);color:#d8d3e8;}
+.meal-greeting{color:var(--tb-muted);}
 .qr-row{background:#0c0e14;border:1px solid var(--tb-border);border-radius:18px;padding:16px;}
 .qr-box{padding:7px;background:#fff;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.25);}
 .empty{color:#a5a9b6;}
@@ -495,6 +509,10 @@ input:focus,select:focus,textarea:focus{border-color:rgba(167,139,250,.8)!import
               <input id="new-salads" type="number" min="0" placeholder="0">
             </div>
           </div>
+          <div class="field">
+            <label>📝 ملاحظات خاصة (تظهر للموظفين فقط)</label>
+            <input id="new-notes" placeholder="مثال: حساسية من المكسرات، يفضل بدون بصل...">
+          </div>
           <button class="btn btn-primary" id="create-btn">إنشاء البطاقة</button>
         </div>
         <div class="card">
@@ -502,7 +520,7 @@ input:focus,select:focus,textarea:focus{border-color:rgba(167,139,250,.8)!import
           <button class="btn btn-scan" id="open-scan-btn">مسح رمز العميل</button>
         </div>
         <hr class="divider">
-        <h3 class="section-title"><span class="section-num">3</span> الاشتراكات الحالية <span id="subs-count" style="font-size:11px;font-weight:700;color:var(--tb-muted,var(--gray));background:rgba(139,92,246,.15);border-radius:20px;padding:2px 10px;margin-inline-start:6px;">0</span></h3>
+        <h3 class="section-title">الاشتراكات الحالية <span id="subs-count" style="font-size:11px;font-weight:700;color:var(--tb-muted,var(--gray));background:rgba(139,92,246,.15);border-radius:20px;padding:2px 10px;margin-inline-start:6px;">0</span></h3>
         <div class="search-row">
           <input id="staff-search" placeholder="ابحث بالاسم أو الرمز أو رقم الموبايل…">
         </div>
@@ -511,6 +529,7 @@ input:focus,select:focus,textarea:focus{border-color:rgba(167,139,250,.8)!import
           <button class="chip" data-filter="active">نشطة</button>
           <button class="chip" data-filter="low">قاربت تخلص</button>
           <button class="chip" data-filter="done">خلصت</button>
+          <button class="chip" data-filter="archived">🗄️ الأرشيف</button>
         </div>
         <div id="staff-list"></div>
         <div class="pagination" id="pagination"></div>
@@ -602,7 +621,7 @@ async function loadData() {
     await authReady;
     const snap = await getDocs(collection(db, "subscriptions"));
     data = {};
-    snap.forEach((d) => { const r = d.data(); data[d.id] = { name: r.name, phone: r.phone || "", mealsTotal: r.mealsTotal ?? 0, mealsUsed: r.mealsUsed ?? 0, saladsTotal: r.saladsTotal ?? 0, saladsUsed: r.saladsUsed ?? 0 }; });
+    snap.forEach((d) => { const r = d.data(); data[d.id] = { name: r.name, phone: r.phone || "", mealsTotal: r.mealsTotal ?? 0, mealsUsed: r.mealsUsed ?? 0, saladsTotal: r.saladsTotal ?? 0, saladsUsed: r.saladsUsed ?? 0, archived: r.archived || false, notes: r.notes || "" }; });
     setCache(data); loaded = true; return { ok: true };
   } catch (e) { data = getCache(); loaded = true; showToast("⚠️ وضع عدم الاتصال", "error"); return { ok: true }; }
 }
@@ -610,9 +629,9 @@ async function loadData() {
 async function saveSub(code, sub) {
   try {
     await authReady;
-    await setDoc(doc(db, "subscriptions", code), { name: sub.name, phone: sub.phone || "", mealsTotal: sub.mealsTotal, mealsUsed: sub.mealsUsed, saladsTotal: sub.saladsTotal, saladsUsed: sub.saladsUsed }, { merge: true });
+    await setDoc(doc(db, "subscriptions", code), { name: sub.name, phone: sub.phone || "", mealsTotal: sub.mealsTotal, mealsUsed: sub.mealsUsed, saladsTotal: sub.saladsTotal, saladsUsed: sub.saladsUsed, archived: sub.archived || false, notes: sub.notes || "" }, { merge: true });
     const c = getCache(); c[code] = sub; setCache(c); return { ok: true };
-  } catch (e) { const c = getCache(); c[code] = sub; setCache(c); queueOp("upsert", { code, name: sub.name, phone: sub.phone || "", mealsTotal: sub.mealsTotal, mealsUsed: sub.mealsUsed, saladsTotal: sub.saladsTotal, saladsUsed: sub.saladsUsed }); showToast("⚠️ حفظ محلي", "error"); return { ok: false }; }
+  } catch (e) { const c = getCache(); c[code] = sub; setCache(c); queueOp("upsert", { code, name: sub.name, phone: sub.phone || "", mealsTotal: sub.mealsTotal, mealsUsed: sub.mealsUsed, saladsTotal: sub.saladsTotal, saladsUsed: sub.saladsUsed, archived: sub.archived || false, notes: sub.notes || "" }); showToast("⚠️ حفظ محلي", "error"); return { ok: false }; }
 }
 
 async function deleteSubRemote(code) {
@@ -625,7 +644,7 @@ async function syncPending() {
   try { await authReady; } catch {}
   for (const item of q) {
     try {
-      if (item.action === "upsert") await setDoc(doc(db, "subscriptions", item.payload.code), { name: item.payload.name, phone: item.payload.phone || "", mealsTotal: item.payload.mealsTotal, mealsUsed: item.payload.mealsUsed, saladsTotal: item.payload.saladsTotal, saladsUsed: item.payload.saladsUsed }, { merge: true });
+      if (item.action === "upsert") await setDoc(doc(db, "subscriptions", item.payload.code), { name: item.payload.name, phone: item.payload.phone || "", mealsTotal: item.payload.mealsTotal, mealsUsed: item.payload.mealsUsed, saladsTotal: item.payload.saladsTotal, saladsUsed: item.payload.saladsUsed, archived: item.payload.archived || false, notes: item.payload.notes || "" }, { merge: true });
       else if (item.action === "delete") await deleteDoc(doc(db, "subscriptions", item.payload.code));
       synced++;
     } catch { failed.push(item); }
@@ -694,12 +713,23 @@ async function confirmDeduction(name, remaining, type) {
 function genCode() { let c; do { c = String(Math.floor(1000 + Math.random() * 9000)); } while (data[c]); return c; }
 function showScreen(id) { document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active")); document.getElementById(id).classList.add("active"); }
 
+function getGreeting() {
+  const h = new Date().getHours();
+  return (h >= 5 && h < 18) ? "☀️ صباح الخير" : "🌙 مساء الخير";
+}
+
+function isLowBalance(sub) {
+  const mr = Math.max(sub.mealsTotal - sub.mealsUsed, 0), sr = Math.max(sub.saladsTotal - sub.saladsUsed, 0);
+  return (mr > 0 && mr <= 2) || (sr > 0 && sr <= 2);
+}
+
 function mealCardHTML(code, sub, opts = {}) {
   const mr = Math.max(sub.mealsTotal - sub.mealsUsed, 0), sr = Math.max(sub.saladsTotal - sub.saladsUsed, 0);
   let md = "", sd = "";
   for (let i = 0; i < sub.mealsTotal; i++) md += `<div class="dot ${i < sub.mealsUsed ? 'used' : ''}"></div>`;
   for (let i = 0; i < sub.saladsTotal; i++) sd += `<div class="dot-green ${i < sub.saladsUsed ? 'used' : ''}"></div>`;
-  return `<div class="meal-card"><div class="meal-header"><h2 class="meal-name">${sub.name}</h2><span class="meal-code">${code}</span></div><div class="meal-section"><div class="meal-section-title">🍽️ الوجبات</div><div class="meal-stats"><div class="remaining">${mr}</div><div class="remaining-text">من أصل <strong>${sub.mealsTotal}</strong> وجبة</div></div><div class="dots">${md}</div></div><div class="meal-section"><div class="meal-section-title">🥗 السلطات</div><div class="meal-stats"><div class="remaining-green">${sr}</div><div class="remaining-text">من أصل <strong>${sub.saladsTotal}</strong> سلطة</div></div><div class="dots">${sd}</div></div>${opts.showQr ? `<div class="qr-row"><div class="qr-box" id="qr-${code}"></div></div>` : ""}</div>`;
+  const lowWarning = isLowBalance(sub) ? `<div class="low-balance-warning">⚠️ رصيدك قارب على الانتهاء، لا تنسَ التجديد قريبًا</div>` : "";
+  return `<div class="meal-card"><div class="meal-header"><div><div class="meal-greeting">${getGreeting()}،</div><h2 class="meal-name">${sub.name}</h2></div><span class="meal-code">${code}</span></div>${lowWarning}<div class="meal-section"><div class="meal-section-title">🍽️ الوجبات</div><div class="meal-stats"><div class="remaining">${mr}</div><div class="remaining-text">من أصل <strong>${sub.mealsTotal}</strong> وجبة</div></div><div class="dots">${md}</div></div><div class="meal-section"><div class="meal-section-title">🥗 السلطات</div><div class="meal-stats"><div class="remaining-green">${sr}</div><div class="remaining-text">من أصل <strong>${sub.saladsTotal}</strong> سلطة</div></div><div class="dots">${sd}</div></div>${opts.showQr ? `<div class="qr-row"><div class="qr-box" id="qr-${code}"></div></div>` : ""}</div>`;
 }
 
 async function doLookup() {
@@ -725,6 +755,8 @@ async function doLookup() {
 function getFilteredCodes() {
   let codes = Object.keys(data); const q = activeSearch.trim().toLowerCase();
   if (q) codes = codes.filter((c) => data[c].name.toLowerCase().includes(q) || c.includes(q) || normalizePhone(data[c].phone).includes(normalizePhone(q)));
+  if (activeFilter === "archived") return codes.filter((c) => data[c].archived);
+  codes = codes.filter((c) => !data[c].archived);
   if (activeFilter === "active") codes = codes.filter((c) => (data[c].mealsTotal - data[c].mealsUsed) > 0 || (data[c].saladsTotal - data[c].saladsUsed) > 0);
   else if (activeFilter === "low") codes = codes.filter((c) => { const mr = data[c].mealsTotal - data[c].mealsUsed, sr = data[c].saladsTotal - data[c].saladsUsed; return (mr > 0 && mr <= Math.max(1, Math.ceil(data[c].mealsTotal * 0.2))) || (sr > 0 && sr <= Math.max(1, Math.ceil(data[c].saladsTotal * 0.2))); });
   else if (activeFilter === "done") codes = codes.filter((c) => (data[c].mealsTotal - data[c].mealsUsed) <= 0 && (data[c].saladsTotal - data[c].saladsUsed) <= 0);
@@ -739,7 +771,7 @@ window._goPage = (p) => { currentPage = p; renderStaffList(); };
 
 function renderStaffList() {
   const wrap = $("staff-list"); const all = Object.keys(data); const codes = getFilteredCodes();
-  const countBadge = $("subs-count"); if (countBadge) countBadge.textContent = all.length + " مشترك";
+  const countBadge = $("subs-count"); if (countBadge) countBadge.textContent = all.filter((c) => !data[c].archived).length + " مشترك";
   if (!all.length) { wrap.innerHTML = `<div class="empty"><div class="empty-icon">📭</div>لا توجد اشتراكات</div>`; $("pagination").innerHTML = ""; return; }
   if (!codes.length) { wrap.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div>لا توجد نتائج</div>`; $("pagination").innerHTML = ""; return; }
   const tp = Math.ceil(codes.length / PAGE_SIZE) || 1; if (currentPage > tp) currentPage = tp;
@@ -747,14 +779,19 @@ function renderStaffList() {
   wrap.innerHTML = page.map((code) => {
     const s = data[code]; const mr = Math.max(s.mealsTotal - s.mealsUsed, 0), sr = Math.max(s.saladsTotal - s.saladsUsed, 0);
     const mp = s.mealsTotal ? Math.round((s.mealsUsed / s.mealsTotal) * 100) : 0, sp = s.saladsTotal ? Math.round((s.saladsUsed / s.saladsTotal) * 100) : 0;
-    return `<div class="staff-item"><div class="staff-item-header"><div><div class="staff-item-name">${s.name}</div><div class="staff-item-meta">الرمز ${code}${s.phone ? ` · 📱 ${s.phone}` : ""} · 🍽️ ${mr}/${s.mealsTotal} · 🥗 ${sr}/${s.saladsTotal}</div></div><button class="btn btn-ghost" data-action="delete" data-code="${code}" style="width:auto;padding:6px 10px;">حذف</button></div><div style="font-size:11px;color:var(--gray);margin-bottom:4px;">🍽️ الوجبات</div><div class="progress-bar"><div class="progress-fill" style="width:${mp}%"></div></div><div style="font-size:11px;color:var(--gray);margin-bottom:4px;">🥗 السلطات</div><div class="progress-bar"><div class="progress-fill-green" style="width:${sp}%"></div></div><div class="staff-actions"><button class="btn btn-stamp" data-action="use-meal" data-code="${code}" ${mr <= 0 ? "disabled" : ""}>🍽️ خصم وجبة</button><button class="btn btn-stamp-green" data-action="use-salad" data-code="${code}" ${sr <= 0 ? "disabled" : ""}>🥗 خصم سلطة</button></div><div class="staff-actions"><button class="btn btn-ghost" data-action="undo-meal" data-code="${code}" ${s.mealsUsed <= 0 ? "disabled" : ""} style="background:#f3f4f6;">↶ تراجع وجبة</button><button class="btn btn-ghost" data-action="undo-salad" data-code="${code}" ${s.saladsUsed <= 0 ? "disabled" : ""} style="background:#f3f4f6;">↶ تراجع سلطة</button></div><div class="staff-actions" style="margin-top:4px;"><button class="btn btn-ghost" data-action="qr" data-code="${code}" style="background:#f3f4f6;width:100%;">📱 عرض QR</button></div><div id="qr-slot-${code}"></div></div>`;
+    const notesLine = s.notes ? `<div class="staff-notes">📝 ${s.notes}</div>` : "";
+    if (s.archived) {
+      return `<div class="staff-item staff-item-archived"><div class="staff-item-header"><div><div class="staff-item-name">${s.name} <span class="archived-badge">مؤرشف</span></div><div class="staff-item-meta">الرمز ${code}${s.phone ? ` · 📱 ${s.phone}` : ""} · آخر رصيد: 🍽️ ${s.mealsTotal} · 🥗 ${s.saladsTotal}</div></div></div>${notesLine}<div class="staff-actions" style="margin-top:8px;"><button class="btn btn-primary" data-action="renew" data-code="${code}">🔄 تجديد</button><button class="btn btn-ghost" data-action="delete" data-code="${code}" style="background:#f3f4f6;">🗑️ حذف نهائي</button></div><div class="staff-actions" style="margin-top:4px;"><button class="btn btn-ghost" data-action="edit-notes" data-code="${code}" style="background:#f3f4f6;width:100%;">📝 تعديل الملاحظة</button></div></div>`;
+    }
+    const lowBadge = isLowBalance(s) ? `<span class="low-badge">⚠️ قارب على الانتهاء</span>` : "";
+    return `<div class="staff-item ${isLowBalance(s) ? 'staff-item-low' : ''}"><div class="staff-item-header"><div><div class="staff-item-name">${s.name} ${lowBadge}</div><div class="staff-item-meta">الرمز ${code}${s.phone ? ` · 📱 ${s.phone}` : ""} · 🍽️ ${mr}/${s.mealsTotal} · 🥗 ${sr}/${s.saladsTotal}</div></div><button class="btn btn-ghost" data-action="delete" data-code="${code}" style="width:auto;padding:6px 10px;">حذف</button></div>${notesLine}<div style="font-size:11px;color:var(--gray);margin-bottom:4px;">🍽️ الوجبات</div><div class="progress-bar"><div class="progress-fill" style="width:${mp}%"></div></div><div style="font-size:11px;color:var(--gray);margin-bottom:4px;">🥗 السلطات</div><div class="progress-bar"><div class="progress-fill-green" style="width:${sp}%"></div></div><div class="staff-actions"><button class="btn btn-stamp" data-action="use-meal" data-code="${code}" ${mr <= 0 ? "disabled" : ""}>🍽️ خصم وجبة</button><button class="btn btn-stamp-green" data-action="use-salad" data-code="${code}" ${sr <= 0 ? "disabled" : ""}>🥗 خصم سلطة</button></div><div class="staff-actions"><button class="btn btn-ghost" data-action="undo-meal" data-code="${code}" ${s.mealsUsed <= 0 ? "disabled" : ""} style="background:#f3f4f6;">↶ تراجع وجبة</button><button class="btn btn-ghost" data-action="undo-salad" data-code="${code}" ${s.saladsUsed <= 0 ? "disabled" : ""} style="background:#f3f4f6;">↶ تراجع سلطة</button></div><div class="staff-actions" style="margin-top:4px;"><button class="btn btn-ghost" data-action="qr" data-code="${code}" style="background:#f3f4f6;width:100%;">📱 عرض QR</button><button class="btn btn-ghost" data-action="edit-notes" data-code="${code}" style="background:#f3f4f6;width:100%;">📝 ملاحظة</button></div><div id="qr-slot-${code}"></div></div>`;
   }).join("");
   renderPagination(codes.length);
 }
 
 async function refreshStaff() { $("staff-list").innerHTML = `<div class="empty">جاري التحميل…</div>`; if (!loaded) await loadData(); renderStaffList(); }
 
-const ACTION_META = { create: { icon: "➕", cls: "create", label: "إنشاء بطاقة" }, "use-meal": { icon: "🍽️", cls: "use", label: "خصم وجبة" }, "use-salad": { icon: "🥗", cls: "use", label: "خصم سلطة" }, "undo-meal": { icon: "↶", cls: "undo", label: "تراجع وجبة" }, "undo-salad": { icon: "↶", cls: "undo", label: "تراجع سلطة" }, delete: { icon: "🗑️", cls: "delete", label: "حذف بطاقة" } };
+const ACTION_META = { create: { icon: "➕", cls: "create", label: "إنشاء بطاقة" }, "use-meal": { icon: "🍽️", cls: "use", label: "خصم وجبة" }, "use-salad": { icon: "🥗", cls: "use", label: "خصم سلطة" }, "undo-meal": { icon: "↶", cls: "undo", label: "تراجع وجبة" }, "undo-salad": { icon: "↶", cls: "undo", label: "تراجع سلطة" }, delete: { icon: "🗑️", cls: "delete", label: "حذف بطاقة" }, archive: { icon: "📦", cls: "delete", label: "أرشفة بطاقة" }, renew: { icon: "🔄", cls: "create", label: "تجديد بطاقة" } };
 
 function timeAgo(iso) { const d = Date.now() - new Date(iso).getTime(); const m = Math.floor(d / 60000); if (m < 1) return "الآن"; if (m < 60) return `منذ ${m} د`; const h = Math.floor(m / 60); if (h < 24) return `منذ ${h} س`; const days = Math.floor(h / 24); if (days < 7) return `منذ ${days} يوم`; return new Date(iso).toLocaleDateString("ar-EG", { day: "numeric", month: "short" }); }
 
@@ -824,25 +861,57 @@ async function handleScannedCode(str) {
   await saveSub(res.code, sub); addLogEntry("use-" + type, res.code, sub.name, "QR"); showToast(`✓ ${sub.name} — ${rem - 1} ${type === "meal" ? "وجبات" : "سلطات"}`, "success"); await refreshStaff();
 }
 
+function triggerShake(el) { if (!el) return; el.classList.add("tb-shake"); setTimeout(() => el.classList.remove("tb-shake"), 400); }
+
 $("staff-list").addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-action]"); if (!btn) return;
   const code = btn.dataset.code, action = btn.dataset.action, sub = data[code]; if (!sub) return;
-  if (action === "use-meal" && sub.mealsUsed < sub.mealsTotal) { const ok = await confirmDeduction(sub.name, sub.mealsTotal - sub.mealsUsed, "meal"); if (!ok) return; sub.mealsUsed++; showToast(`✓ تم خصم وجبة`, "success"); addLogEntry("use-meal", code, sub.name); await saveSub(code, sub); }
-  else if (action === "use-salad" && sub.saladsUsed < sub.saladsTotal) { const ok = await confirmDeduction(sub.name, sub.saladsTotal - sub.saladsUsed, "salad"); if (!ok) return; sub.saladsUsed++; showToast(`✓ تم خصم سلطة`, "success"); addLogEntry("use-salad", code, sub.name); await saveSub(code, sub); }
+  const itemEl = btn.closest(".staff-item");
+  if (action === "use-meal" && sub.mealsUsed < sub.mealsTotal) {
+    const ok = await confirmDeduction(sub.name, sub.mealsTotal - sub.mealsUsed, "meal"); if (!ok) return;
+    sub.mealsUsed++; showToast(`✓ تم خصم وجبة`, "success"); addLogEntry("use-meal", code, sub.name); await saveSub(code, sub); triggerShake(itemEl);
+  }
+  else if (action === "use-salad" && sub.saladsUsed < sub.saladsTotal) {
+    const ok = await confirmDeduction(sub.name, sub.saladsTotal - sub.saladsUsed, "salad"); if (!ok) return;
+    sub.saladsUsed++; showToast(`✓ تم خصم سلطة`, "success"); addLogEntry("use-salad", code, sub.name); await saveSub(code, sub); triggerShake(itemEl);
+  }
   else if (action === "undo-meal" && sub.mealsUsed > 0) { sub.mealsUsed--; showToast("↶ تراجع وجبة", "success"); addLogEntry("undo-meal", code, sub.name); await saveSub(code, sub); }
   else if (action === "undo-salad" && sub.saladsUsed > 0) { sub.saladsUsed--; showToast("↶ تراجع سلطة", "success"); addLogEntry("undo-salad", code, sub.name); await saveSub(code, sub); }
-  else if (action === "delete") { if (!confirm(`حذف بطاقة ${sub.name}؟`)) return; delete data[code]; showToast("تم الحذف", "success"); addLogEntry("delete", code, sub.name); await deleteSubRemote(code); }
+  else if (action === "delete") {
+    const mr = Math.max(sub.mealsTotal - sub.mealsUsed, 0), sr = Math.max(sub.saladsTotal - sub.saladsUsed, 0);
+    if (mr <= 0 && sr <= 0 && !sub.archived) {
+      if (!confirm(`نقل بطاقة ${sub.name} إلى الأرشيف بدل حذفها نهائيًا؟`)) return;
+      sub.archived = true; showToast("📦 تم نقل البطاقة للأرشيف", "success"); addLogEntry("archive", code, sub.name); await saveSub(code, sub);
+    } else {
+      if (!confirm(`حذف بطاقة ${sub.name} نهائيًا؟ هذا الإجراء لا يمكن التراجع عنه.`)) return;
+      delete data[code]; showToast("تم الحذف نهائيًا", "success"); addLogEntry("delete", code, sub.name); await deleteSubRemote(code);
+    }
+  }
+  else if (action === "renew") {
+    const newMeals = parseInt(prompt(`كم عدد الوجبات الجديدة لـ ${sub.name}؟`, sub.mealsTotal) || "", 10);
+    const newSalads = parseInt(prompt(`كم عدد السلطات الجديدة لـ ${sub.name}؟`, sub.saladsTotal) || "", 10);
+    if (isNaN(newMeals) && isNaN(newSalads)) return;
+    sub.mealsTotal = isNaN(newMeals) ? sub.mealsTotal : newMeals; sub.mealsUsed = 0;
+    sub.saladsTotal = isNaN(newSalads) ? sub.saladsTotal : newSalads; sub.saladsUsed = 0;
+    sub.archived = false; showToast(`✓ تم تجديد بطاقة ${sub.name}`, "success"); addLogEntry("renew", code, sub.name, `${sub.mealsTotal} وجبة + ${sub.saladsTotal} سلطة`); await saveSub(code, sub);
+  }
+  else if (action === "edit-notes") {
+    const newNotes = prompt(`ملاحظة خاصة عن ${sub.name} (تظهر للموظفين فقط):`, sub.notes || "");
+    if (newNotes === null) return;
+    sub.notes = newNotes.trim(); await saveSub(code, sub); showToast("✓ تم حفظ الملاحظة", "success");
+  }
   else if (action === "qr") { const slot = document.getElementById(`qr-slot-${code}`); if (slot.dataset.open === "1") { slot.innerHTML = ""; slot.dataset.open = "0"; } else { const id = `staff-qr-${code}`; slot.innerHTML = `<div class="qr-row"><div class="qr-box" id="${id}"></div></div>`; slot.dataset.open = "1"; renderSecureQR(id, code); } return; }
   renderStaffList();
 });
 
 $("create-btn").addEventListener("click", async () => {
-  const name = $("new-name").value.trim(), phone = $("new-phone").value.trim(), meals = parseInt($("new-meals").value, 10) || 0, salads = parseInt($("new-salads").value, 10) || 0;
+  const name = $("new-name").value.trim(), phone = $("new-phone").value.trim(), meals = parseInt($("new-meals").value, 10) || 0, salads = parseInt($("new-salads").value, 10) || 0, notes = $("new-notes").value.trim();
   if (!name) { showToast("أدخل اسم العميل", "error"); return; } if (meals === 0 && salads === 0) { showToast("أدخل عدد وجبات أو سلطات", "error"); return; }
   if (phone && normalizePhone(phone).length < 7) { showToast("رقم الموبايل غير صحيح", "error"); return; }
-  if (!loaded) await loadData(); const code = genCode(); data[code] = { name, phone, mealsTotal: meals, mealsUsed: 0, saladsTotal: salads, saladsUsed: 0 };
-  await saveSub(code, data[code]); addLogEntry("create", code, name, `${meals} وجبة + ${salads} سلطة`); $("new-name").value = ""; $("new-phone").value = ""; $("new-meals").value = ""; $("new-salads").value = "";
+  if (!loaded) await loadData(); const code = genCode(); data[code] = { name, phone, mealsTotal: meals, mealsUsed: 0, saladsTotal: salads, saladsUsed: 0, archived: false, notes };
+  await saveSub(code, data[code]); addLogEntry("create", code, name, `${meals} وجبة + ${salads} سلطة`); $("new-name").value = ""; $("new-phone").value = ""; $("new-meals").value = ""; $("new-salads").value = ""; $("new-notes").value = "";
   renderStaffList(); showToast(`✓ البطاقة جاهزة — الرمز ${code}`, "success");
+  const cb = $("create-btn"); cb.classList.add("tb-shake"); setTimeout(() => cb.classList.remove("tb-shake"), 400);
 });
 
 $("lookup-btn").addEventListener("click", doLookup);
