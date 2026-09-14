@@ -984,7 +984,20 @@ function applyRoleRestrictions() {
 }
 
 let scanStream = null, scanRAF = null;
-async function openScanner() { const m = $("scan-modal"), s = $("scan-status"), v = $("scan-video"); m.classList.add("show"); s.textContent = "جاري تشغيل الكاميرا…"; if (typeof jsQR === "undefined") { s.textContent = "تعذر تحميل الأداة"; return; } try { scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); v.srcObject = scanStream; await v.play(); s.textContent = "وجّه الكاميرا نحو QR"; scanLoop(); } catch (e) { s.textContent = "تعذر الوصول للكاميرا"; } }
+function ensureJsQR() {
+  if (typeof jsQR !== "undefined") return Promise.resolve(true);
+  const sources = ["https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js", "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"];
+  const tryLoad = (i) => new Promise((resolve) => {
+    if (i >= sources.length) { resolve(typeof jsQR !== "undefined"); return; }
+    const el = document.createElement("script"); el.src = sources[i];
+    el.onload = () => resolve(typeof jsQR !== "undefined" ? true : tryLoad(i + 1));
+    el.onerror = () => resolve(tryLoad(i + 1));
+    document.head.appendChild(el);
+  });
+  return tryLoad(0);
+}
+
+async function openScanner() { const m = $("scan-modal"), s = $("scan-status"), v = $("scan-video"); m.classList.add("show"); s.textContent = "جاري تحميل أداة المسح…"; const ok = await ensureJsQR(); if (!ok) { s.textContent = "تعذر تحميل أداة المسح — تحقق من اتصالك بالإنترنت وحاول مجددًا"; return; } s.textContent = "جاري تشغيل الكاميرا…"; try { scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); v.srcObject = scanStream; await v.play(); s.textContent = "وجّه الكاميرا نحو QR"; scanLoop(); } catch (e) { s.textContent = "تعذر الوصول للكاميرا"; } }
 function scanLoop() { const v = $("scan-video"), c = $("scan-canvas"); if (!v.videoWidth) { scanRAF = requestAnimationFrame(scanLoop); return; } c.width = v.videoWidth; c.height = v.videoHeight; const ctx = c.getContext("2d"); ctx.drawImage(v, 0, 0, c.width, c.height); const img = ctx.getImageData(0, 0, c.width, c.height); const r = jsQR(img.data, img.width, img.height); if (r && r.data) { handleScannedCode(r.data.trim()); return; } scanRAF = requestAnimationFrame(scanLoop); }
 function closeScanner() { $("scan-modal").classList.remove("show"); if (scanRAF) cancelAnimationFrame(scanRAF); if (scanStream) { scanStream.getTracks().forEach((t) => t.stop()); scanStream = null; } }
 
