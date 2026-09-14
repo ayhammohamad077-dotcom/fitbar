@@ -734,10 +734,11 @@ function showWhatsAppPrompt(phone, message) {
   setTimeout(() => { if ($("wa-prompt") === el) el.remove(); }, 8000);
 }
 
-function notifyDeduction(sub, type) {
+function notifyDeduction(sub, type, qty = 1) {
   const mr = Math.max(sub.mealsTotal - sub.mealsUsed, 0), sr = Math.max(sub.saladsTotal - sub.saladsUsed, 0);
-  const unit = type === "meal" ? "وجبة" : "سلطة";
-  const msg = `مرحبًا ${sub.name} 👋\nتم خصم ${unit} من رصيدك في THE FIT BAR ✅\n🍽️ المتبقي من الوجبات: ${mr}\n🥗 المتبقي من السلطات: ${sr}\nشكرًا لاختيارك THE FIT BAR!`;
+  const unit = type === "meal" ? "وجبة" : "سلطة", unitPlural = type === "meal" ? "وجبات" : "سلطات";
+  const qtyText = qty > 1 ? `${qty} ${unitPlural}` : unit;
+  const msg = `مرحبًا ${sub.name} 👋\nتم خصم ${qtyText} من رصيدك في THE FIT BAR ✅\n🍽️ المتبقي من الوجبات: ${mr}\n🥗 المتبقي من السلطات: ${sr}\nشكرًا لاختيارك THE FIT BAR!`;
   showWhatsAppPrompt(sub.phone, msg);
 }
 
@@ -835,9 +836,10 @@ function showConfirm({ title, message, confirmText, cancelText, green }) {
   });
 }
 
-async function confirmDeduction(name, remaining, type) {
+async function confirmDeduction(name, remaining, type, qty = 1) {
   const isSalad = type === "salad";
-  return showConfirm({ title: isSalad ? "خصم سلطة؟ 🥗" : "خصم وجبة؟ 🍽️", message: `العميل: <strong>${name}</strong><br>المتبقي: <strong>${remaining}</strong> ${isSalad ? "سلطات" : "وجبات"}`, confirmText: isSalad ? "🥗 نعم" : "🍽️ نعم", cancelText: "إلغاء", green: isSalad });
+  const qtyLabel = qty > 1 ? `${qty} ${isSalad ? "سلطات" : "وجبات"}` : (isSalad ? "سلطة" : "وجبة");
+  return showConfirm({ title: `خصم ${qtyLabel}؟ ${isSalad ? "🥗" : "🍽️"}`, message: `العميل: <strong>${name}</strong><br>المتاح: <strong>${remaining}</strong> ${isSalad ? "سلطات" : "وجبات"}`, confirmText: isSalad ? "🥗 نعم" : "🍽️ نعم", cancelText: "إلغاء", green: isSalad });
 }
 
 function genCode() { let c; do { c = String(Math.floor(1000 + Math.random() * 9000)); } while (data[c]); return c; }
@@ -1051,9 +1053,12 @@ async function handleScannedCode(str) {
   const mr = Math.max(sub.mealsTotal - sub.mealsUsed, 0), sr = Math.max(sub.saladsTotal - sub.saladsUsed, 0);
   if (mr <= 0 && sr <= 0) { showToast("لا يوجد رصيد", "error"); return; }
   const type = await chooseDeductionType(sub.name, mr, sr); if (!type) { showToast("تم الإلغاء"); return; }
-  if (type === "meal") sub.mealsUsed++; else sub.saladsUsed++;
-  const rem = type === "meal" ? mr - 1 : sr - 1;
-  await saveSub(res.code, sub); addLogEntry("use-" + type, res.code, sub.name, "QR"); showToast(`✓ ${sub.name} — ${rem} ${type === "meal" ? "وجبات" : "سلطات"}`, "success"); notifyDeduction(sub, type, rem); await refreshStaff();
+  const maxQty = type === "meal" ? mr : sr;
+  let qty = 1;
+  if (maxQty > 1) { const input = prompt(`كم عدد ${type === "meal" ? "الوجبات" : "السلطات"} تريد خصمها؟ (المتاح: ${maxQty})`, "1"); if (input === null) { showToast("تم الإلغاء"); return; } qty = parseInt(input, 10); if (!qty || qty < 1) { showToast("تم الإلغاء"); return; } qty = Math.min(qty, maxQty); }
+  if (type === "meal") sub.mealsUsed += qty; else sub.saladsUsed += qty;
+  const rem = maxQty - qty;
+  await saveSub(res.code, sub); addLogEntry("use-" + type, res.code, sub.name, qty > 1 ? `QR x${qty}` : "QR"); showToast(`✓ ${sub.name} — ${rem} ${type === "meal" ? "وجبات" : "سلطات"}`, "success"); notifyDeduction(sub, type, qty); await refreshStaff();
 }
 
 function triggerShake(el) { if (!el) return; el.classList.add("tb-shake"); setTimeout(() => el.classList.remove("tb-shake"), 400); }
@@ -1063,12 +1068,18 @@ $("staff-list").addEventListener("click", async (e) => {
   const code = btn.dataset.code, action = btn.dataset.action, sub = data[code]; if (!sub) return;
   const itemEl = btn.closest(".staff-item");
   if (action === "use-meal" && sub.mealsUsed < sub.mealsTotal) {
-    const ok = await confirmDeduction(sub.name, sub.mealsTotal - sub.mealsUsed, "meal"); if (!ok) return;
-    sub.mealsUsed++; showToast(`✓ تم خصم وجبة`, "success"); addLogEntry("use-meal", code, sub.name); await saveSub(code, sub); triggerShake(itemEl); notifyDeduction(sub, "meal", sub.mealsTotal - sub.mealsUsed);
+    const maxQty = sub.mealsTotal - sub.mealsUsed;
+    let qty = 1;
+    if (maxQty > 1) { const input = prompt(`كم عدد الوجبات تريد خصمها؟ (المتاح: ${maxQty})`, "1"); if (input === null) return; qty = parseInt(input, 10); if (!qty || qty < 1) return; qty = Math.min(qty, maxQty); }
+    const ok = await confirmDeduction(sub.name, maxQty, "meal", qty); if (!ok) return;
+    sub.mealsUsed += qty; showToast(`✓ تم خصم ${qty > 1 ? qty + " وجبات" : "وجبة"}`, "success"); addLogEntry("use-meal", code, sub.name, qty > 1 ? `x${qty}` : undefined); await saveSub(code, sub); triggerShake(itemEl); notifyDeduction(sub, "meal", qty);
   }
   else if (action === "use-salad" && sub.saladsUsed < sub.saladsTotal) {
-    const ok = await confirmDeduction(sub.name, sub.saladsTotal - sub.saladsUsed, "salad"); if (!ok) return;
-    sub.saladsUsed++; showToast(`✓ تم خصم سلطة`, "success"); addLogEntry("use-salad", code, sub.name); await saveSub(code, sub); triggerShake(itemEl); notifyDeduction(sub, "salad", sub.saladsTotal - sub.saladsUsed);
+    const maxQty = sub.saladsTotal - sub.saladsUsed;
+    let qty = 1;
+    if (maxQty > 1) { const input = prompt(`كم عدد السلطات تريد خصمها؟ (المتاح: ${maxQty})`, "1"); if (input === null) return; qty = parseInt(input, 10); if (!qty || qty < 1) return; qty = Math.min(qty, maxQty); }
+    const ok = await confirmDeduction(sub.name, maxQty, "salad", qty); if (!ok) return;
+    sub.saladsUsed += qty; showToast(`✓ تم خصم ${qty > 1 ? qty + " سلطات" : "سلطة"}`, "success"); addLogEntry("use-salad", code, sub.name, qty > 1 ? `x${qty}` : undefined); await saveSub(code, sub); triggerShake(itemEl); notifyDeduction(sub, "salad", qty);
   }
   else if (action === "undo-meal" && sub.mealsUsed > 0) { sub.mealsUsed--; showToast("↶ تراجع وجبة", "success"); addLogEntry("undo-meal", code, sub.name); await saveSub(code, sub); }
   else if (action === "undo-salad" && sub.saladsUsed > 0) { sub.saladsUsed--; showToast("↶ تراجع سلطة", "success"); addLogEntry("undo-salad", code, sub.name); await saveSub(code, sub); }
