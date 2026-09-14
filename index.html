@@ -1001,16 +1001,27 @@ async function openScanner() { const m = $("scan-modal"), s = $("scan-status"), 
 function scanLoop() { const v = $("scan-video"), c = $("scan-canvas"); if (!v.videoWidth) { scanRAF = requestAnimationFrame(scanLoop); return; } c.width = v.videoWidth; c.height = v.videoHeight; const ctx = c.getContext("2d"); ctx.drawImage(v, 0, 0, c.width, c.height); const img = ctx.getImageData(0, 0, c.width, c.height); const r = jsQR(img.data, img.width, img.height); if (r && r.data) { handleScannedCode(r.data.trim()); return; } scanRAF = requestAnimationFrame(scanLoop); }
 function closeScanner() { $("scan-modal").classList.remove("show"); if (scanRAF) cancelAnimationFrame(scanRAF); if (scanStream) { scanStream.getTracks().forEach((t) => t.stop()); scanStream = null; } }
 
+function chooseDeductionType(name, mr, sr) {
+  return new Promise((resolve) => {
+    const old = document.getElementById("confirm-modal"); if (old) old.remove();
+    const bd = document.createElement("div"); bd.id = "confirm-modal"; bd.className = "modal-backdrop show";
+    bd.innerHTML = `<div class="cf-box"><h3>خصم لـ ${name}</h3><p>اختر ماذا تريد أن تخصم:</p><div class="cf-btns" style="flex-direction:column;gap:10px;"><button class="cf-confirm" data-t="meal" ${mr <= 0 ? "disabled" : ""}>🍽️ خصم وجبة (متبقي ${mr})</button><button class="cf-confirm-green" data-t="salad" ${sr <= 0 ? "disabled" : ""}>🥗 خصم سلطة (متبقي ${sr})</button><button class="cf-cancel">إلغاء</button></div></div>`;
+    bd.querySelector(".cf-cancel").onclick = () => { bd.remove(); resolve(null); };
+    bd.querySelectorAll("button[data-t]").forEach((b) => { b.onclick = () => { bd.remove(); resolve(b.dataset.t); }; });
+    document.body.appendChild(bd);
+  });
+}
+
 async function handleScannedCode(str) {
   closeScanner(); if (!loaded) await loadData(); const res = await verifyQR(str);
   if (!res.valid) { showToast(res.reason === "expired" ? "انتهت الصلاحية" : "رمز غير صالح", "error"); return; }
   const sub = data[res.code]; if (!sub) { showToast("الرمز غير موجود", "error"); return; }
   const mr = Math.max(sub.mealsTotal - sub.mealsUsed, 0), sr = Math.max(sub.saladsTotal - sub.saladsUsed, 0);
   if (mr <= 0 && sr <= 0) { showToast("لا يوجد رصيد", "error"); return; }
-  const type = mr > 0 ? "meal" : "salad", rem = type === "meal" ? mr : sr;
-  const ok = await confirmDeduction(sub.name, rem, type); if (!ok) { showToast("تم الإلغاء"); return; }
+  const type = await chooseDeductionType(sub.name, mr, sr); if (!type) { showToast("تم الإلغاء"); return; }
   if (type === "meal") sub.mealsUsed++; else sub.saladsUsed++;
-  await saveSub(res.code, sub); addLogEntry("use-" + type, res.code, sub.name, "QR"); showToast(`✓ ${sub.name} — ${rem - 1} ${type === "meal" ? "وجبات" : "سلطات"}`, "success"); await refreshStaff();
+  const rem = type === "meal" ? mr - 1 : sr - 1;
+  await saveSub(res.code, sub); addLogEntry("use-" + type, res.code, sub.name, "QR"); showToast(`✓ ${sub.name} — ${rem} ${type === "meal" ? "وجبات" : "سلطات"}`, "success"); await refreshStaff();
 }
 
 function triggerShake(el) { if (!el) return; el.classList.add("tb-shake"); setTimeout(() => el.classList.remove("tb-shake"), 400); }
