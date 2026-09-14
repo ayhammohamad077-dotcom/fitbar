@@ -842,6 +842,21 @@ async function confirmDeduction(name, remaining, type, qty = 1) {
   return showConfirm({ title: `خصم ${qtyLabel}؟ ${isSalad ? "🥗" : "🍽️"}`, message: `العميل: <strong>${name}</strong><br>المتاح: <strong>${remaining}</strong> ${isSalad ? "سلطات" : "وجبات"}`, confirmText: isSalad ? "🥗 نعم" : "🍽️ نعم", cancelText: "إلغاء", green: isSalad });
 }
 
+function chooseQuantity(name, type, maxQty) {
+  return new Promise((resolve) => {
+    const isSalad = type === "salad";
+    const unit = isSalad ? "سلطة" : "وجبة", unitPlural = isSalad ? "سلطات" : "وجبات", accent = isSalad ? "#22c55e" : "#8b5cf6";
+    const old = document.getElementById("confirm-modal"); if (old) old.remove();
+    const bd = document.createElement("div"); bd.id = "confirm-modal"; bd.className = "modal-backdrop show";
+    bd.innerHTML = `<div class="cf-box"><h3>خصم ${isSalad ? "🥗" : "🍽️"} — ${name}</h3><p>حدد الكمية (المتاح: ${maxQty})</p><div style="display:flex;align-items:center;gap:14px;margin:16px 0 6px;"><span id="qty-display" style="font-size:32px;font-weight:800;min-width:40px;text-align:center;color:${accent};">1</span><input type="range" id="qty-slider" min="1" max="${maxQty}" value="1" step="1" style="flex:1;height:6px;accent-color:${accent};"></div><div class="cf-btns"><button class="cf-cancel">إلغاء</button><button class="${isSalad ? 'cf-confirm-green' : 'cf-confirm'}" id="qty-confirm-btn">${isSalad ? "🥗" : "🍽️"} خصم <span id="qty-confirm-label">1 ${unit}</span></button></div></div>`;
+    const slider = bd.querySelector("#qty-slider"), display = bd.querySelector("#qty-display"), label = bd.querySelector("#qty-confirm-label");
+    slider.addEventListener("input", () => { const v = parseInt(slider.value, 10); display.textContent = v; label.textContent = `${v} ${v > 1 ? unitPlural : unit}`; });
+    bd.querySelector(".cf-cancel").onclick = () => { bd.remove(); resolve(null); };
+    bd.querySelector("#qty-confirm-btn").onclick = () => { bd.remove(); resolve(parseInt(slider.value, 10)); };
+    document.body.appendChild(bd);
+  });
+}
+
 function genCode() { let c; do { c = String(Math.floor(1000 + Math.random() * 9000)); } while (data[c]); return c; }
 function showScreen(id) { document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active")); document.getElementById(id).classList.add("active"); }
 
@@ -1054,8 +1069,7 @@ async function handleScannedCode(str) {
   if (mr <= 0 && sr <= 0) { showToast("لا يوجد رصيد", "error"); return; }
   const type = await chooseDeductionType(sub.name, mr, sr); if (!type) { showToast("تم الإلغاء"); return; }
   const maxQty = type === "meal" ? mr : sr;
-  let qty = 1;
-  if (maxQty > 1) { const input = prompt(`كم عدد ${type === "meal" ? "الوجبات" : "السلطات"} تريد خصمها؟ (المتاح: ${maxQty})`, "1"); if (input === null) { showToast("تم الإلغاء"); return; } qty = parseInt(input, 10); if (!qty || qty < 1) { showToast("تم الإلغاء"); return; } qty = Math.min(qty, maxQty); }
+  const qty = await chooseQuantity(sub.name, type, maxQty); if (!qty) { showToast("تم الإلغاء"); return; }
   if (type === "meal") sub.mealsUsed += qty; else sub.saladsUsed += qty;
   const rem = maxQty - qty;
   await saveSub(res.code, sub); addLogEntry("use-" + type, res.code, sub.name, qty > 1 ? `QR x${qty}` : "QR"); showToast(`✓ ${sub.name} — ${rem} ${type === "meal" ? "وجبات" : "سلطات"}`, "success"); notifyDeduction(sub, type, qty); await refreshStaff();
@@ -1069,16 +1083,12 @@ $("staff-list").addEventListener("click", async (e) => {
   const itemEl = btn.closest(".staff-item");
   if (action === "use-meal" && sub.mealsUsed < sub.mealsTotal) {
     const maxQty = sub.mealsTotal - sub.mealsUsed;
-    let qty = 1;
-    if (maxQty > 1) { const input = prompt(`كم عدد الوجبات تريد خصمها؟ (المتاح: ${maxQty})`, "1"); if (input === null) return; qty = parseInt(input, 10); if (!qty || qty < 1) return; qty = Math.min(qty, maxQty); }
-    const ok = await confirmDeduction(sub.name, maxQty, "meal", qty); if (!ok) return;
+    const qty = await chooseQuantity(sub.name, "meal", maxQty); if (!qty) return;
     sub.mealsUsed += qty; showToast(`✓ تم خصم ${qty > 1 ? qty + " وجبات" : "وجبة"}`, "success"); addLogEntry("use-meal", code, sub.name, qty > 1 ? `x${qty}` : undefined); await saveSub(code, sub); triggerShake(itemEl); notifyDeduction(sub, "meal", qty);
   }
   else if (action === "use-salad" && sub.saladsUsed < sub.saladsTotal) {
     const maxQty = sub.saladsTotal - sub.saladsUsed;
-    let qty = 1;
-    if (maxQty > 1) { const input = prompt(`كم عدد السلطات تريد خصمها؟ (المتاح: ${maxQty})`, "1"); if (input === null) return; qty = parseInt(input, 10); if (!qty || qty < 1) return; qty = Math.min(qty, maxQty); }
-    const ok = await confirmDeduction(sub.name, maxQty, "salad", qty); if (!ok) return;
+    const qty = await chooseQuantity(sub.name, "salad", maxQty); if (!qty) return;
     sub.saladsUsed += qty; showToast(`✓ تم خصم ${qty > 1 ? qty + " سلطات" : "سلطة"}`, "success"); addLogEntry("use-salad", code, sub.name, qty > 1 ? `x${qty}` : undefined); await saveSub(code, sub); triggerShake(itemEl); notifyDeduction(sub, "salad", qty);
   }
   else if (action === "undo-meal" && sub.mealsUsed > 0) { sub.mealsUsed--; showToast("↶ تراجع وجبة", "success"); addLogEntry("undo-meal", code, sub.name); await saveSub(code, sub); }
