@@ -714,6 +714,32 @@ function setQueue(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
 function queueOp(action, payload) { const q = getQueue(); q.push({ action, payload, ts: Date.now() }); setQueue(q); }
 function normalizePhone(value) { return String(value || "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[^0-9]/g, ""); }
 
+function toWhatsAppNumber(phone) {
+  let p = normalizePhone(phone); if (!p) return null;
+  if (p.startsWith("00")) p = p.slice(2);
+  else if (p.startsWith("0")) p = "962" + p.slice(1);
+  else if (!p.startsWith("962")) p = "962" + p;
+  return p;
+}
+
+function showWhatsAppPrompt(phone, message) {
+  const num = toWhatsAppNumber(phone); if (!num) return;
+  const link = `https://wa.me/${num}?text=${encodeURIComponent(message)}`;
+  const old = $("wa-prompt"); if (old) old.remove();
+  const el = document.createElement("div"); el.id = "wa-prompt";
+  el.style.cssText = "position:fixed;bottom:96px;left:50%;transform:translateX(-50%);z-index:9999;background:#111827;color:#fff;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.35);font-size:13px;max-width:92vw;";
+  el.innerHTML = `<span style="white-space:nowrap;">📲 إشعار العميل؟</span><a href="${link}" target="_blank" rel="noopener" style="background:#25D366;color:#fff;border-radius:20px;padding:6px 14px;font-weight:800;text-decoration:none;white-space:nowrap;">إرسال واتساب</a><button type="button" aria-label="إغلاق" style="background:transparent;color:#9ca3af;border:none;font-size:16px;cursor:pointer;padding:0 2px;">✕</button>`;
+  el.querySelector("button").onclick = () => el.remove();
+  document.body.appendChild(el);
+  setTimeout(() => { if ($("wa-prompt") === el) el.remove(); }, 8000);
+}
+
+function notifyDeduction(sub, type, remaining) {
+  const unit = type === "meal" ? "وجبة" : "سلطة";
+  const msg = `مرحبًا ${sub.name} 👋\nتم خصم ${unit} من رصيدك في THE FIT BAR ✅\nالمتبقي: ${remaining} ${unit}\nشكرًا لاختيارك THE FIT BAR!`;
+  showWhatsAppPrompt(sub.phone, msg);
+}
+
 async function loadData() {
   try {
     await authReady;
@@ -1021,7 +1047,7 @@ async function handleScannedCode(str) {
   const type = await chooseDeductionType(sub.name, mr, sr); if (!type) { showToast("تم الإلغاء"); return; }
   if (type === "meal") sub.mealsUsed++; else sub.saladsUsed++;
   const rem = type === "meal" ? mr - 1 : sr - 1;
-  await saveSub(res.code, sub); addLogEntry("use-" + type, res.code, sub.name, "QR"); showToast(`✓ ${sub.name} — ${rem} ${type === "meal" ? "وجبات" : "سلطات"}`, "success"); await refreshStaff();
+  await saveSub(res.code, sub); addLogEntry("use-" + type, res.code, sub.name, "QR"); showToast(`✓ ${sub.name} — ${rem} ${type === "meal" ? "وجبات" : "سلطات"}`, "success"); notifyDeduction(sub, type, rem); await refreshStaff();
 }
 
 function triggerShake(el) { if (!el) return; el.classList.add("tb-shake"); setTimeout(() => el.classList.remove("tb-shake"), 400); }
@@ -1032,11 +1058,11 @@ $("staff-list").addEventListener("click", async (e) => {
   const itemEl = btn.closest(".staff-item");
   if (action === "use-meal" && sub.mealsUsed < sub.mealsTotal) {
     const ok = await confirmDeduction(sub.name, sub.mealsTotal - sub.mealsUsed, "meal"); if (!ok) return;
-    sub.mealsUsed++; showToast(`✓ تم خصم وجبة`, "success"); addLogEntry("use-meal", code, sub.name); await saveSub(code, sub); triggerShake(itemEl);
+    sub.mealsUsed++; showToast(`✓ تم خصم وجبة`, "success"); addLogEntry("use-meal", code, sub.name); await saveSub(code, sub); triggerShake(itemEl); notifyDeduction(sub, "meal", sub.mealsTotal - sub.mealsUsed);
   }
   else if (action === "use-salad" && sub.saladsUsed < sub.saladsTotal) {
     const ok = await confirmDeduction(sub.name, sub.saladsTotal - sub.saladsUsed, "salad"); if (!ok) return;
-    sub.saladsUsed++; showToast(`✓ تم خصم سلطة`, "success"); addLogEntry("use-salad", code, sub.name); await saveSub(code, sub); triggerShake(itemEl);
+    sub.saladsUsed++; showToast(`✓ تم خصم سلطة`, "success"); addLogEntry("use-salad", code, sub.name); await saveSub(code, sub); triggerShake(itemEl); notifyDeduction(sub, "salad", sub.saladsTotal - sub.saladsUsed);
   }
   else if (action === "undo-meal" && sub.mealsUsed > 0) { sub.mealsUsed--; showToast("↶ تراجع وجبة", "success"); addLogEntry("undo-meal", code, sub.name); await saveSub(code, sub); }
   else if (action === "undo-salad" && sub.saladsUsed > 0) { sub.saladsUsed--; showToast("↶ تراجع سلطة", "success"); addLogEntry("undo-salad", code, sub.name); await saveSub(code, sub); }
