@@ -734,9 +734,15 @@ function showWhatsAppPrompt(phone, message) {
   setTimeout(() => { if ($("wa-prompt") === el) el.remove(); }, 8000);
 }
 
-function notifyDeduction(sub, type, remaining) {
+function notifyDeduction(sub, type) {
+  const mr = Math.max(sub.mealsTotal - sub.mealsUsed, 0), sr = Math.max(sub.saladsTotal - sub.saladsUsed, 0);
   const unit = type === "meal" ? "وجبة" : "سلطة";
-  const msg = `مرحبًا ${sub.name} 👋\nتم خصم ${unit} من رصيدك في THE FIT BAR ✅\nالمتبقي: ${remaining} ${unit}\nشكرًا لاختيارك THE FIT BAR!`;
+  const msg = `مرحبًا ${sub.name} 👋\nتم خصم ${unit} من رصيدك في THE FIT BAR ✅\n🍽️ المتبقي من الوجبات: ${mr}\n🥗 المتبقي من السلطات: ${sr}\nشكرًا لاختيارك THE FIT BAR!`;
+  showWhatsAppPrompt(sub.phone, msg);
+}
+
+function notifyWelcome(sub, code) {
+  const msg = `مرحبًا ${sub.name} 👋\nتم تفعيل اشتراكك في THE FIT BAR بنجاح 🎉\nرمز بطاقتك: ${code}\nرصيدك: ${sub.mealsTotal} وجبة 🍽️ و ${sub.saladsTotal} سلطة 🥗\nنتمنى لك تجربة صحية ولذيذة معنا!`;
   showWhatsAppPrompt(sub.phone, msg);
 }
 
@@ -1101,7 +1107,7 @@ $("create-btn").addEventListener("click", async () => {
   if (phone && normalizePhone(phone).length < 7) { showToast("رقم الموبايل غير صحيح", "error"); return; }
   if (!loaded) await loadData(); const code = genCode(); data[code] = { name, phone, mealsTotal: meals, mealsUsed: 0, saladsTotal: salads, saladsUsed: 0, archived: false, notes, createdAt: new Date().toISOString() };
   await saveSub(code, data[code]); addLogEntry("create", code, name, `${meals} وجبة + ${salads} سلطة`); $("new-name").value = ""; $("new-phone").value = ""; $("new-meals").value = ""; $("new-salads").value = ""; $("new-notes").value = "";
-  renderStaffList(); showToast(`✓ البطاقة جاهزة — الرمز ${code}`, "success");
+  renderStaffList(); showToast(`✓ البطاقة جاهزة — الرمز ${code}`, "success"); notifyWelcome(data[code], code);
   const cb = $("create-btn"); cb.classList.add("tb-shake"); setTimeout(() => cb.classList.remove("tb-shake"), 400);
 });
 
